@@ -1,3 +1,5 @@
+mod bucket;
+
 #[cfg(test)]
 mod tests {
     #[test]
