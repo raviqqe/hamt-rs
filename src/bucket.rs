@@ -5,9 +5,9 @@ use node::{Node, State};
 use node::State::{Empty, More, Singleton};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Bucket<K: Ord>(Arc<Vec<K>>);
+pub struct Bucket<K>(Arc<Vec<K>>);
 
-impl<K: Ord> Bucket<K> {
+impl<K> Bucket<K> {
     fn new(k: K) -> Self {
         Bucket(Arc::new(vec![k]))
     }
