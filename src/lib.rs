@@ -1,4 +1,5 @@
 mod bucket;
+mod node;
 
 #[cfg(test)]
 mod tests {
