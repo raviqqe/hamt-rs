@@ -57,7 +57,7 @@ impl<K: Clone + Hash + Ord> Node for Bucket<K> {
     }
 
     fn state(&self) -> State {
-        match self.0.len() {
+        match self.size() {
             0 => Empty,
             1 => Singleton,
             _ => More,
