@@ -1,0 +1,6 @@
+[package]
+name = "hamt-sync"
+version = "0.1.0"
+authors = ["Yota Toyama <raviqqe@gmail.com>"]
+
+[dependencies]
