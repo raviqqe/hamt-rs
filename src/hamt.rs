@@ -97,14 +97,14 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
         )
     }
 
-    fn delete(&self, k: K) -> Option<Self> {
-        let i = self.entry_index(&k);
+    fn delete(&self, k: &K) -> Option<Self> {
+        let i = self.entry_index(k);
 
         Some(self.set_entry(
             i,
             match self.entries[i] {
                 Entry::Empty => return None,
-                Entry::Key(ref kk) => if *kk == k {
+                Entry::Key(ref kk) => if *kk == *k {
                     Entry::Empty
                 } else {
                     return None;
@@ -121,11 +121,11 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
         ))
     }
 
-    fn find(&self, k: K) -> Option<K> {
-        match self.entries[self.entry_index(&k)] {
+    fn find(&self, k: &K) -> Option<&K> {
+        match self.entries[self.entry_index(k)] {
             Entry::Empty => None,
-            Entry::Key(ref kk) => if *kk == k {
-                Some(k.clone())
+            Entry::Key(ref kk) => if *kk == *k {
+                Some(kk)
             } else {
                 None
             },
@@ -134,11 +134,11 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
         }
     }
 
-    fn first_rest(&self) -> Option<(K, Self)> {
+    fn first_rest(&self) -> Option<(&K, Self)> {
         for (i, e) in self.entries.iter().enumerate() {
             match *e {
                 Entry::Empty => {}
-                Entry::Key(ref k) => return Some((k.clone(), self.delete(k.clone()).unwrap())),
+                Entry::Key(ref k) => return Some((k, self.delete(k).unwrap())),
                 Entry::Hamt(ref h) => {
                     let (f, r) = h.first_rest().unwrap();
                     return Some((
@@ -180,10 +180,13 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
     }
 }
 
-fn node_to_entry<N: Clone + Node>(n: &N, f: fn(N) -> Entry<N::Key>) -> Entry<N::Key> {
+fn node_to_entry<N: Clone + Node>(n: &N, f: fn(N) -> Entry<N::Key>) -> Entry<N::Key>
+where
+    N::Key: Clone,
+{
     if n.is_singleton() {
-        let (f, _) = n.first_rest().unwrap();
-        Entry::Key(f)
+        let (e, _) = n.first_rest().unwrap();
+        Entry::Key(e.clone())
     } else {
         f(n.clone())
     }
@@ -244,11 +247,11 @@ mod test {
     fn delete() {
         let h = Hamt::new(0);
 
-        assert_eq!(h.insert(0).delete(0), Some(h.clone()));
-        assert_eq!(h.insert(0).delete(1), None);
-        assert_eq!(h.insert(0).insert(1).delete(0), Some(h.insert(1)));
-        assert_eq!(h.insert(0).insert(1).delete(1), Some(h.insert(0)));
-        assert_eq!(h.insert(0).insert(1).delete(2), None);
+        assert_eq!(h.insert(0).delete(&0), Some(h.clone()));
+        assert_eq!(h.insert(0).delete(&1), None);
+        assert_eq!(h.insert(0).insert(1).delete(&0), Some(h.insert(1)));
+        assert_eq!(h.insert(0).insert(1).delete(&1), Some(h.insert(0)));
+        assert_eq!(h.insert(0).insert(1).delete(&2), None);
     }
 
     #[test]
@@ -258,18 +261,18 @@ mod test {
         for _ in 0..NUM_ITERATIONS {
             let k = random();
             let s = h.size();
-            let found = h.find(k).is_some();
+            let found = h.find(&k).is_some();
 
             if random() {
                 h = h.insert(k);
 
                 assert_eq!(h.size(), if found { s } else { s + 1 });
-                assert_eq!(h.find(k), Some(k));
+                assert_eq!(h.find(&k), Some(&k));
             } else {
-                h = h.delete(k).or(Some(h)).unwrap();
+                h = h.delete(&k).or(Some(h)).unwrap();
 
                 assert_eq!(h.size(), if found { s - 1 } else { s });
-                assert_eq!(h.find(k), None);
+                assert_eq!(h.find(&k), None);
             }
 
             assert!(h.is_normal());
@@ -280,13 +283,13 @@ mod test {
     fn find() {
         let h = Hamt::new(0);
 
-        assert_eq!(h.insert(0).find(0), Some(0));
-        assert_eq!(h.insert(0).find(1), None);
-        assert_eq!(h.insert(1).find(0), None);
-        assert_eq!(h.insert(1).find(1), Some(1));
-        assert_eq!(h.insert(0).insert(1).find(0), Some(0));
-        assert_eq!(h.insert(0).insert(1).find(1), Some(1));
-        assert_eq!(h.insert(0).insert(1).find(2), None);
+        assert_eq!(h.insert(0).find(&0), Some(&0));
+        assert_eq!(h.insert(0).find(&1), None);
+        assert_eq!(h.insert(1).find(&0), None);
+        assert_eq!(h.insert(1).find(&1), Some(&1));
+        assert_eq!(h.insert(0).insert(1).find(&0), Some(&0));
+        assert_eq!(h.insert(0).insert(1).find(&1), Some(&1));
+        assert_eq!(h.insert(0).insert(1).find(&2), None);
     }
 
     #[test]
@@ -300,12 +303,18 @@ mod test {
         }
 
         for _ in 0..NUM_ITERATIONS {
-            let (f, r) = h.first_rest().unwrap();
+            let new: Hamt<i16>;
 
-            assert_eq!(r.size(), h.size() - 1);
-            assert_eq!(r.find(f), None);
+            {
+                let (f, r) = h.first_rest().unwrap();
 
-            h = r;
+                assert_eq!(r.size(), h.size() - 1);
+                assert_eq!(r.find(f), None);
+
+                new = r;
+            }
+
+            h = new;
 
             assert!(h.is_normal());
         }
@@ -339,7 +348,7 @@ mod test {
                     *h = if bs[i] {
                         h.insert(k.clone())
                     } else {
-                        h.delete(k.clone()).or(Some(h.clone())).unwrap()
+                        h.delete(&k).or(Some(h.clone())).unwrap()
                     };
                 }
             }

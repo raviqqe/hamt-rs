@@ -29,7 +29,7 @@ impl<K: Clone + Hash + Ord> Node for Bucket<K> {
         Bucket(Arc::new(v))
     }
 
-    fn delete(&self, k: K) -> Option<Self> {
+    fn delete(&self, k: &K) -> Option<Self> {
         match self.0.binary_search(&k) {
             Ok(i) => {
                 let mut v = (*self.0).clone();
@@ -40,19 +40,18 @@ impl<K: Clone + Hash + Ord> Node for Bucket<K> {
         }
     }
 
-    fn find(&self, k: K) -> Option<K> {
-        self.0.binary_search(&k).ok().map(|i| self.0[i].clone())
+    fn find(&self, k: &K) -> Option<&K> {
+        self.0.binary_search(k).ok().map(|i| &self.0[i])
     }
 
-    fn first_rest(&self) -> Option<(K, Self)> {
+    fn first_rest(&self) -> Option<(&K, Self)> {
         if self.0.is_empty() {
             return None;
         }
 
-        let f = self.0[0].clone();
         let mut v = (*self.0).clone();
         v.remove(0);
-        Some((f, Bucket(Arc::new(v))))
+        Some((&self.0[0], Bucket(Arc::new(v))))
     }
 
     fn is_singleton(&self) -> bool {
@@ -66,7 +65,6 @@ impl<K: Clone + Hash + Ord> Node for Bucket<K> {
 
 #[cfg(test)]
 mod test {
-
     use super::*;
 
     #[test]
@@ -90,26 +88,26 @@ mod test {
     fn delete() {
         let b = Bucket::new(42);
 
-        assert_eq!(b.delete(42).unwrap().size(), 0);
-        assert_eq!(b.insert(0).delete(42).unwrap(), Bucket::new(0));
+        assert_eq!(b.delete(&42).unwrap().size(), 0);
+        assert_eq!(b.insert(0).delete(&42).unwrap(), Bucket::new(0));
     }
 
     #[test]
     fn find() {
         let b = Bucket::new(42);
 
-        assert_eq!(b.find(42), Some(42));
-        assert_eq!(b.find(0), None);
+        assert_eq!(b.find(&42), Some(&42));
+        assert_eq!(b.find(&0), None);
     }
 
     #[test]
     fn first_rest() {
         let b = Bucket::new(42).insert(0);
 
-        assert_eq!(b.first_rest(), Some((0, Bucket::new(42))));
+        assert_eq!(b.first_rest(), Some((&0, Bucket::new(42))));
         assert_eq!(
-            b.delete(0).unwrap().first_rest(),
-            Some((42, b.delete(0).unwrap().delete(42).unwrap()))
+            b.delete(&0).unwrap().first_rest(),
+            Some((&42, b.delete(&0).unwrap().delete(&42).unwrap()))
         );
     }
 
@@ -117,7 +115,7 @@ mod test {
     fn is_singleton() {
         let b = Bucket::new(42);
 
-        assert!(!b.delete(42).unwrap().is_singleton());
+        assert!(!b.delete(&42).unwrap().is_singleton());
         assert!(b.is_singleton());
         assert!(!b.insert(0).is_singleton());
     }
