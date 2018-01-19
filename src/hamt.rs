@@ -28,7 +28,7 @@ pub struct Hamt<K> {
 }
 
 impl<K: Clone + Hash + Ord> Hamt<K> {
-    fn new(l: u8) -> Self {
+    pub fn new(l: u8) -> Self {
         Hamt {
             level: l,
             entries: Default::default(),
