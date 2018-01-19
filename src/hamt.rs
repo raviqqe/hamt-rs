@@ -207,7 +207,7 @@ mod test {
 
     use super::*;
 
-    const NUM_ITERATIONS: usize = 2 ^ 16;
+    const NUM_ITERATIONS: usize = 1 << 12;
 
     #[test]
     fn new() {
@@ -336,11 +336,11 @@ mod test {
     fn equality() {
         for _ in 0..8 {
             let mut hs: [Hamt<i16>; 2] = [Hamt::new(0), Hamt::new(0)];
-            let ks: [i16; NUM_ITERATIONS] = random();
-            let bs: [bool; NUM_ITERATIONS] = random();
+            let ks: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
+            let bs: Vec<bool> = (0..NUM_ITERATIONS).map(|_| random()).collect();
 
             for h in hs.iter_mut() {
-                let mut v: Vec<usize> = (0..ks.len()).collect();
+                let mut v: Vec<usize> = (0..NUM_ITERATIONS).collect();
                 thread_rng().shuffle(&mut v);
 
                 for i in v {
