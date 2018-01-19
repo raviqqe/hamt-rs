@@ -8,7 +8,7 @@ use node::State::{Empty, More, Singleton};
 pub struct Bucket<K>(Arc<Vec<K>>);
 
 impl<K> Bucket<K> {
-    fn new(k: K) -> Self {
+    pub fn new(k: K) -> Self {
         Bucket(Arc::new(vec![k]))
     }
 }
