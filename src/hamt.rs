@@ -336,21 +336,19 @@ mod test {
     fn equality() {
         for _ in 0..8 {
             let mut hs: [Hamt<i16>; 2] = [Hamt::new(0), Hamt::new(0)];
-            let ks: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
-            let bs: Vec<bool> = (0..NUM_ITERATIONS).map(|_| random()).collect();
+            let mut is: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
+            let mut ds: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
 
             for h in hs.iter_mut() {
-                let mut v: Vec<usize> = (0..NUM_ITERATIONS).collect();
-                thread_rng().shuffle(&mut v);
+                thread_rng().shuffle(&mut is);
+                thread_rng().shuffle(&mut ds);
 
-                for i in v {
-                    let k = ks[i];
+                for i in &is {
+                    *h = h.insert(i.clone());
+                }
 
-                    *h = if bs[i] {
-                        h.insert(k.clone())
-                    } else {
-                        h.delete(&k).or(Some(h.clone())).unwrap()
-                    };
+                for d in &ds {
+                    *h = h.delete(&d).or(Some(h.clone())).unwrap();
                 }
             }
 
