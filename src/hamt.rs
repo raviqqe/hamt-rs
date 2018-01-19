@@ -303,7 +303,7 @@ mod test {
             assert!(h.is_normal());
         }
 
-        for _ in 0..NUM_ITERATIONS {
+        for _ in 0..h.size() {
             let new: Hamt<i16>;
 
             {
