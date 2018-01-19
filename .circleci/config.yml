@@ -13,3 +13,6 @@ jobs:
       - run:
           name: Test
           command: cargo test
+      - run:
+          name: Benchmark
+          command: cargo bench

@@ -204,6 +204,7 @@ mod test {
     use std::collections::HashSet;
 
     use rand::{random, thread_rng, Rng};
+    use test::Bencher;
 
     use super::*;
 
@@ -376,5 +377,67 @@ mod test {
         }
 
         assert!(h.contain_bucket());
+    }
+
+    fn keys() -> Vec<i16> {
+        (0..1000).collect()
+    }
+
+    #[bench]
+    fn bench_insert_1000(b: &mut Bencher) {
+        let ks = keys();
+
+        b.iter(|| {
+            let mut h = Hamt::new(0);
+
+            for k in &ks {
+                h = h.insert(k);
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_find_1000(b: &mut Bencher) {
+        let ks = keys();
+        let mut h = Hamt::new(0);
+
+        for k in &ks {
+            h = h.insert(k);
+        }
+
+        b.iter(|| {
+            for k in &ks {
+                h.find(&k);
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_hash_set_insert_1000(b: &mut Bencher) {
+        let ks = keys();
+
+        b.iter(|| {
+            let mut h = HashSet::new();
+
+            for k in &ks {
+                h.insert(k);
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_hash_set_find_1000(b: &mut Bencher) {
+        let ks = keys();
+        let mut h = HashSet::new();
+
+        for k in &ks {
+            h.insert(k);
+        }
+
+        b.iter(|| {
+            for k in &ks {
+                h.get(&k);
+            }
+        });
     }
 }
