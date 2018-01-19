@@ -345,7 +345,7 @@ mod test {
                 thread_rng().shuffle(&mut ds);
 
                 for i in &is {
-                    *h = h.insert(i.clone());
+                    *h = h.insert(*i);
                 }
 
                 for d in &ds {
