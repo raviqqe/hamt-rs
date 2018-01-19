@@ -270,7 +270,7 @@ mod test {
                 assert_eq!(h.size(), if found { s } else { s + 1 });
                 assert_eq!(h.find(&k), Some(&k));
             } else {
-                h = h.delete(&k).or(Some(h)).unwrap();
+                h = h.delete(&k).unwrap_or(h);
 
                 assert_eq!(h.size(), if found { s - 1 } else { s });
                 assert_eq!(h.find(&k), None);
@@ -348,7 +348,7 @@ mod test {
                 }
 
                 for d in &ds {
-                    *h = h.delete(&d).or(Some(h.clone())).unwrap();
+                    *h = h.delete(&d).unwrap_or(h.clone());
                 }
             }
 
