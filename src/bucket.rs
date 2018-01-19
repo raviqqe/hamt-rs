@@ -1,8 +1,7 @@
 use std::hash::Hash;
 use std::sync::Arc;
 
-use node::{Node, State};
-use node::State::{Empty, More, Singleton};
+use node::Node;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Bucket<K>(Arc<Vec<K>>);
@@ -56,12 +55,8 @@ impl<K: Clone + Hash + Ord> Node for Bucket<K> {
         Some((f, Bucket(Arc::new(v))))
     }
 
-    fn state(&self) -> State {
-        match self.size() {
-            0 => Empty,
-            1 => Singleton,
-            _ => More,
-        }
+    fn is_singleton(&self) -> bool {
+        self.size() == 1
     }
 
     fn size(&self) -> usize {
@@ -71,17 +66,16 @@ impl<K: Clone + Hash + Ord> Node for Bucket<K> {
 
 #[cfg(test)]
 mod test {
-    use node::State::{Empty, More, Singleton};
 
     use super::*;
 
     #[test]
-    fn bucket_new() {
+    fn new() {
         Bucket::new(42);
     }
 
     #[test]
-    fn bucket_insert() {
+    fn insert() {
         let b = Bucket::new(42);
 
         assert_eq!(b.size(), 1);
@@ -93,7 +87,7 @@ mod test {
     }
 
     #[test]
-    fn bucket_delete() {
+    fn delete() {
         let b = Bucket::new(42);
 
         assert_eq!(b.delete(42).unwrap().size(), 0);
@@ -101,7 +95,7 @@ mod test {
     }
 
     #[test]
-    fn bucket_find() {
+    fn find() {
         let b = Bucket::new(42);
 
         assert_eq!(b.find(42), Some(42));
@@ -109,7 +103,7 @@ mod test {
     }
 
     #[test]
-    fn bucket_first_rest() {
+    fn first_rest() {
         let b = Bucket::new(42).insert(0);
 
         assert_eq!(b.first_rest(), Some((0, Bucket::new(42))));
@@ -120,11 +114,11 @@ mod test {
     }
 
     #[test]
-    fn bucket_state() {
+    fn is_singleton() {
         let b = Bucket::new(42);
 
-        assert_eq!(b.delete(42).unwrap().state(), Empty);
-        assert_eq!(b.state(), Singleton);
-        assert_eq!(b.insert(0).state(), More);
+        assert!(!b.delete(42).unwrap().is_singleton());
+        assert!(b.is_singleton());
+        assert!(!b.insert(0).is_singleton());
     }
 }

@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use bucket::Bucket;
-use node::{Node, State};
+use node::Node;
 
 const MAX_LEVEL: u8 = 64 / 5;
 
@@ -66,8 +66,8 @@ impl<K: Clone + Hash + Ord> Hamt<K> {
     #[cfg(test)]
     fn is_normal(&self) -> bool {
         self.0.entries.iter().all(|e| match *e {
-            Entry::Bucket(ref b) => b.state() != State::Singleton,
-            Entry::Hamt(ref h) => h.is_normal() && h.state() != State::Singleton,
+            Entry::Bucket(ref b) => !b.is_singleton(),
+            Entry::Hamt(ref h) => h.is_normal() && !h.is_singleton(),
             _ => true,
         })
     }
@@ -154,8 +154,8 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
         None
     }
 
-    fn state(&self) -> State {
-        match self.0
+    fn is_singleton(&self) -> bool {
+        self.0
             .entries
             .iter()
             .map(|e| match *e {
@@ -163,12 +163,7 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
                 Entry::Key(_) => 1,
                 _ => 2,
             })
-            .sum()
-        {
-            0 => State::Empty,
-            1 => State::Singleton,
-            _ => State::More,
-        }
+            .sum::<usize>() == 1
     }
 
     fn size(&self) -> usize {
@@ -186,7 +181,7 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
 }
 
 fn node_to_entry<N: Clone + Node>(n: &N, f: fn(N) -> Entry<N::Key>) -> Entry<N::Key> {
-    if n.state() == State::Singleton {
+    if n.is_singleton() {
         let (f, _) = n.first_rest().unwrap();
         Entry::Key(f)
     } else {
@@ -319,12 +314,12 @@ mod test {
     }
 
     #[test]
-    fn state() {
+    fn is_singleton() {
         let h = Hamt::new(0);
 
-        assert_eq!(h.state(), State::Empty);
-        assert_eq!(h.insert(0).state(), State::Singleton);
-        assert_eq!(h.insert(0).insert(1).state(), State::More);
+        assert!(!h.is_singleton());
+        assert!(h.insert(0).is_singleton());
+        assert!(!h.insert(0).insert(1).is_singleton());
     }
 
     #[test]

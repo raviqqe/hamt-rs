@@ -1,12 +1,5 @@
 use std::hash::Hash;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum State {
-    Empty,
-    Singleton,
-    More,
-}
-
 pub trait Node
 where
     Self: Sized,
@@ -17,6 +10,6 @@ where
     fn delete(&self, Self::Key) -> Option<Self>;
     fn find(&self, Self::Key) -> Option<Self::Key>;
     fn first_rest(&self) -> Option<(Self::Key, Self)>;
-    fn state(&self) -> State;
+    fn is_singleton(&self) -> bool;
     fn size(&self) -> usize; // for debugging
 }
