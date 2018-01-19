@@ -23,6 +23,7 @@ impl<K> Default for Entry<K> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Hamt<K> {
+    // TODO: Use bitmap.
     level: u8,
     entries: [Entry<K>; 32],
 }
