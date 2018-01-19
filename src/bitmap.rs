@@ -1,9 +1,11 @@
 use std::mem::size_of;
 
-const NUM_BITS: usize = size_of::<u32>() * 8;
+const NUM_BITS: usize = size_of::<Content>() * 8;
+
+type Content = u32;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Bitmap(u32);
+pub struct Bitmap(Content);
 
 impl Bitmap {
     pub fn new() -> Self {
