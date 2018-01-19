@@ -11,7 +11,7 @@ const MAX_LEVEL: u8 = 64 / 5;
 enum Entry<K> {
     Empty,
     Key(K),
-    Hamt(Hamt<K>),
+    Hamt(Arc<Hamt<K>>),
     Bucket(Bucket<K>),
 }
 
@@ -22,42 +22,39 @@ impl<K> Default for Entry<K> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Hamt<K>(Arc<Inner<K>>);
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct Inner<K> {
+pub struct Hamt<K> {
     level: u8,
     entries: [Entry<K>; 32],
 }
 
 impl<K: Clone + Hash + Ord> Hamt<K> {
     fn new(l: u8) -> Self {
-        Hamt(Arc::new(Inner {
+        Hamt {
             level: l,
             entries: Default::default(),
-        }))
+        }
     }
 
     fn entry_index(&self, k: &K) -> usize {
-        ((hash(k) >> (self.0.level * 5)) & 0b11111) as usize
+        ((hash(k) >> (self.level * 5)) & 0b11111) as usize
     }
 
     fn set_entry(&self, i: usize, e: Entry<K>) -> Self {
-        let mut es = self.0.entries.clone();
+        let mut es = self.entries.clone();
         es[i] = e;
         self.from_entries(es)
     }
 
     fn from_entries(&self, es: [Entry<K>; 32]) -> Self {
-        Hamt(Arc::new(Inner {
-            level: self.0.level,
+        Hamt {
+            level: self.level,
             entries: es,
-        }))
+        }
     }
 
     #[cfg(test)]
     fn contain_bucket(&self) -> bool {
-        self.0.entries.iter().any(|e| match *e {
+        self.entries.iter().any(|e| match *e {
             Entry::Bucket(_) => true,
             _ => false,
         })
@@ -65,7 +62,7 @@ impl<K: Clone + Hash + Ord> Hamt<K> {
 
     #[cfg(test)]
     fn is_normal(&self) -> bool {
-        self.0.entries.iter().all(|e| match *e {
+        self.entries.iter().all(|e| match *e {
             Entry::Bucket(ref b) => !b.is_singleton(),
             Entry::Hamt(ref h) => h.is_normal() && !h.is_singleton(),
             _ => true,
@@ -81,18 +78,20 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
 
         self.set_entry(
             i,
-            match self.0.entries[i] {
+            match self.entries[i] {
                 Entry::Empty => Entry::Key(k),
                 Entry::Key(ref kk) => {
                     if *kk == k {
                         Entry::Key(k)
-                    } else if self.0.level < MAX_LEVEL {
-                        Entry::Hamt(Hamt::new(self.0.level + 1).insert(kk.clone()).insert(k))
+                    } else if self.level < MAX_LEVEL {
+                        Entry::Hamt(Arc::new(
+                            Hamt::new(self.level + 1).insert(kk.clone()).insert(k),
+                        ))
                     } else {
                         Entry::Bucket(Bucket::new(kk.clone()).insert(k))
                     }
                 }
-                Entry::Hamt(ref h) => Entry::Hamt(h.insert(k)),
+                Entry::Hamt(ref h) => Entry::Hamt(Arc::new(h.insert(k))),
                 Entry::Bucket(ref b) => Entry::Bucket(b.insert(k)),
             },
         )
@@ -103,7 +102,7 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
 
         Some(self.set_entry(
             i,
-            match self.0.entries[i] {
+            match self.entries[i] {
                 Entry::Empty => return None,
                 Entry::Key(ref kk) => if *kk == k {
                     Entry::Empty
@@ -112,7 +111,7 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
                 },
                 Entry::Hamt(ref h) => match h.delete(k) {
                     None => return None,
-                    Some(h) => node_to_entry(&h, Entry::Hamt),
+                    Some(h) => node_to_entry(&h, |h| Entry::Hamt(Arc::new(h))),
                 },
                 Entry::Bucket(ref b) => match b.delete(k) {
                     None => return None,
@@ -123,7 +122,7 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
     }
 
     fn find(&self, k: K) -> Option<K> {
-        match self.0.entries[self.entry_index(&k)] {
+        match self.entries[self.entry_index(&k)] {
             Entry::Empty => None,
             Entry::Key(ref kk) => if *kk == k {
                 Some(k.clone())
@@ -136,13 +135,16 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
     }
 
     fn first_rest(&self) -> Option<(K, Self)> {
-        for (i, e) in self.0.entries.iter().enumerate() {
+        for (i, e) in self.entries.iter().enumerate() {
             match *e {
                 Entry::Empty => {}
                 Entry::Key(ref k) => return Some((k.clone(), self.delete(k.clone()).unwrap())),
                 Entry::Hamt(ref h) => {
                     let (f, r) = h.first_rest().unwrap();
-                    return Some((f, self.set_entry(i, node_to_entry(&r, Entry::Hamt))));
+                    return Some((
+                        f,
+                        self.set_entry(i, node_to_entry(&r, |h| Entry::Hamt(Arc::new(h)))),
+                    ));
                 }
                 Entry::Bucket(ref b) => {
                     let (f, r) = b.first_rest().unwrap();
@@ -155,8 +157,7 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
     }
 
     fn is_singleton(&self) -> bool {
-        self.0
-            .entries
+        self.entries
             .iter()
             .map(|e| match *e {
                 Entry::Empty => 0,
@@ -167,8 +168,7 @@ impl<K: Clone + Hash + Ord> Node for Hamt<K> {
     }
 
     fn size(&self) -> usize {
-        self.0
-            .entries
+        self.entries
             .iter()
             .map(|e| match *e {
                 Entry::Empty => 0,
