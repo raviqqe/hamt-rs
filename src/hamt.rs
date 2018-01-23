@@ -74,28 +74,39 @@ impl<K: Clone + Hash + Ord> Hamt<K> {
 impl<K: Clone + Hash + Ord> Node for Hamt<K> {
     type Key = K;
 
-    fn insert(&self, k: K) -> Self {
+    fn insert(&self, k: K) -> (Self, bool) {
         let i = self.entry_index(&k);
 
-        self.set_entry(
-            i,
-            match self.entries[i] {
-                Entry::Empty => Entry::Key(k),
-                Entry::Key(ref kk) => {
-                    if *kk == k {
-                        Entry::Key(k)
-                    } else if self.level < MAX_LEVEL {
-                        Entry::Hamt(Arc::new(
-                            Hamt::new(self.level + 1).insert(kk.clone()).insert(k),
-                        ))
-                    } else {
-                        Entry::Bucket(Bucket::new(kk.clone()).insert(k))
-                    }
+        match self.entries[i] {
+            Entry::Empty => (self.set_entry(i, Entry::Key(k)), true),
+            Entry::Key(ref kk) => {
+                if *kk == k {
+                    return (self.set_entry(i, Entry::Key(k)), false);
                 }
-                Entry::Hamt(ref h) => Entry::Hamt(Arc::new(h.insert(k))),
-                Entry::Bucket(ref b) => Entry::Bucket(b.insert(k)),
-            },
-        )
+
+                (
+                    self.set_entry(
+                        i,
+                        if self.level < MAX_LEVEL {
+                            Entry::Hamt(Arc::new(
+                                Hamt::new(self.level + 1).insert(kk.clone()).0.insert(k).0,
+                            ))
+                        } else {
+                            Entry::Bucket(Bucket::new(kk.clone()).insert(k).0)
+                        },
+                    ),
+                    true,
+                )
+            }
+            Entry::Hamt(ref h) => {
+                let (h, new) = h.insert(k);
+                (self.set_entry(i, Entry::Hamt(Arc::new(h))), new)
+            }
+            Entry::Bucket(ref b) => {
+                let (b, new) = b.insert(k);
+                (self.set_entry(i, Entry::Bucket(b)), new)
+            }
+        }
     }
 
     fn delete(&self, k: &K) -> Option<Self> {
@@ -220,9 +231,21 @@ mod test {
         let h = Hamt::new(0);
 
         assert_eq!(h.size(), 0);
-        assert_eq!(h.insert(0).size(), 1);
-        assert_eq!(h.insert(0).insert(0).size(), 1);
-        assert_eq!(h.insert(0).insert(1).size(), 2);
+
+        let (h, b) = h.insert(0);
+
+        assert!(b);
+        assert_eq!(h.size(), 1);
+
+        let (hh, b) = h.insert(0);
+
+        assert!(!b);
+        assert_eq!(hh.size(), 1);
+
+        let (h, b) = h.insert(1);
+
+        assert!(b);
+        assert_eq!(h.size(), 2);
     }
 
     #[test]
@@ -230,7 +253,9 @@ mod test {
         let mut h = Hamt::new(0);
 
         for i in 0..NUM_ITERATIONS {
-            h = h.insert(i);
+            let (hh, b) = h.insert(i);
+            h = hh;
+            assert!(b);
             assert_eq!(h.size(), i + 1);
         }
     }
@@ -240,7 +265,7 @@ mod test {
         let mut h: Hamt<usize> = Hamt::new(0);
 
         for i in 0..NUM_ITERATIONS {
-            h = h.insert(random());
+            h = h.insert(random()).0;
             assert_eq!(h.size(), i + 1);
         }
     }
@@ -249,11 +274,11 @@ mod test {
     fn delete() {
         let h = Hamt::new(0);
 
-        assert_eq!(h.insert(0).delete(&0), Some(h.clone()));
-        assert_eq!(h.insert(0).delete(&1), None);
-        assert_eq!(h.insert(0).insert(1).delete(&0), Some(h.insert(1)));
-        assert_eq!(h.insert(0).insert(1).delete(&1), Some(h.insert(0)));
-        assert_eq!(h.insert(0).insert(1).delete(&2), None);
+        assert_eq!(h.insert(0).0.delete(&0), Some(h.clone()));
+        assert_eq!(h.insert(0).0.delete(&1), None);
+        assert_eq!(h.insert(0).0.insert(1).0.delete(&0), Some(h.insert(1).0));
+        assert_eq!(h.insert(0).0.insert(1).0.delete(&1), Some(h.insert(0).0));
+        assert_eq!(h.insert(0).0.insert(1).0.delete(&2), None);
     }
 
     #[test]
@@ -266,7 +291,7 @@ mod test {
             let found = h.find(&k).is_some();
 
             if random() {
-                h = h.insert(k);
+                h = h.insert(k).0;
 
                 assert_eq!(h.size(), if found { s } else { s + 1 });
                 assert_eq!(h.find(&k), Some(&k));
@@ -285,13 +310,13 @@ mod test {
     fn find() {
         let h = Hamt::new(0);
 
-        assert_eq!(h.insert(0).find(&0), Some(&0));
-        assert_eq!(h.insert(0).find(&1), None);
-        assert_eq!(h.insert(1).find(&0), None);
-        assert_eq!(h.insert(1).find(&1), Some(&1));
-        assert_eq!(h.insert(0).insert(1).find(&0), Some(&0));
-        assert_eq!(h.insert(0).insert(1).find(&1), Some(&1));
-        assert_eq!(h.insert(0).insert(1).find(&2), None);
+        assert_eq!(h.insert(0).0.find(&0), Some(&0));
+        assert_eq!(h.insert(0).0.find(&1), None);
+        assert_eq!(h.insert(1).0.find(&0), None);
+        assert_eq!(h.insert(1).0.find(&1), Some(&1));
+        assert_eq!(h.insert(0).0.insert(1).0.find(&0), Some(&0));
+        assert_eq!(h.insert(0).0.insert(1).0.find(&1), Some(&1));
+        assert_eq!(h.insert(0).0.insert(1).0.find(&2), None);
     }
 
     #[test]
@@ -299,7 +324,7 @@ mod test {
         let mut h: Hamt<i16> = Hamt::new(0);
 
         for _ in 0..NUM_ITERATIONS {
-            h = h.insert(random());
+            h = h.insert(random()).0;
 
             assert!(h.is_normal());
         }
@@ -329,8 +354,8 @@ mod test {
         let h = Hamt::new(0);
 
         assert!(!h.is_singleton());
-        assert!(h.insert(0).is_singleton());
-        assert!(!h.insert(0).insert(1).is_singleton());
+        assert!(h.insert(0).0.is_singleton());
+        assert!(!h.insert(0).0.insert(1).0.is_singleton());
     }
 
     #[test]
@@ -345,7 +370,7 @@ mod test {
                 thread_rng().shuffle(&mut ds);
 
                 for i in &is {
-                    *h = h.insert(*i);
+                    *h = h.insert(*i).0;
                 }
 
                 for d in &ds {
@@ -365,7 +390,7 @@ mod test {
         for k in 0.. {
             assert!(!h.contain_bucket());
 
-            h = h.insert(k);
+            h = h.insert(k).0;
 
             let i = hash(&k) >> 60;
 
@@ -391,7 +416,7 @@ mod test {
             let mut h = Hamt::new(0);
 
             for k in &ks {
-                h = h.insert(k);
+                h = h.insert(k).0;
             }
         });
     }
@@ -402,7 +427,7 @@ mod test {
         let mut h = Hamt::new(0);
 
         for k in &ks {
-            h = h.insert(k);
+            h = h.insert(k).0;
         }
 
         b.iter(|| {

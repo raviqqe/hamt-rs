@@ -15,18 +15,19 @@ impl<K> Bucket<K> {
 impl<K: Clone + Hash + Ord> Node for Bucket<K> {
     type Key = K;
 
-    fn insert(&self, k: K) -> Self {
+    fn insert(&self, k: K) -> (Self, bool) {
         let mut v = (*self.0).clone();
+        let i = self.0.binary_search(&k);
 
         v.insert(
-            match self.0.binary_search(&k) {
+            match i {
                 Ok(i) => i,
                 Err(i) => i,
             },
             k,
         );
 
-        Bucket(Arc::new(v))
+        (Bucket(Arc::new(v)), i.is_err())
     }
 
     fn delete(&self, k: &K) -> Option<Self> {
@@ -78,8 +79,9 @@ mod test {
 
         assert_eq!(b.size(), 1);
 
-        let bb = b.insert(0);
+        let (bb, new) = b.insert(0);
 
+        assert!(new);
         assert_eq!(b.size(), 1);
         assert_eq!(bb.size(), 2);
     }
@@ -89,7 +91,7 @@ mod test {
         let b = Bucket::new(42);
 
         assert_eq!(b.delete(&42).unwrap().size(), 0);
-        assert_eq!(b.insert(0).delete(&42).unwrap(), Bucket::new(0));
+        assert_eq!(b.insert(0).0.delete(&42).unwrap(), Bucket::new(0));
     }
 
     #[test]
@@ -102,7 +104,7 @@ mod test {
 
     #[test]
     fn first_rest() {
-        let b = Bucket::new(42).insert(0);
+        let b = Bucket::new(42).insert(0).0;
 
         assert_eq!(b.first_rest(), Some((&0, Bucket::new(42))));
         assert_eq!(
@@ -117,6 +119,6 @@ mod test {
 
         assert!(!b.delete(&42).unwrap().is_singleton());
         assert!(b.is_singleton());
-        assert!(!b.insert(0).is_singleton());
+        assert!(!b.insert(0).0.is_singleton());
     }
 }

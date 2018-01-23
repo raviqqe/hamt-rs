@@ -20,16 +20,11 @@ impl<K: Clone + Hash + Ord, V: Clone> Map<K, V> {
     }
 
     pub fn insert(&self, k: K, v: V) -> Self {
-        let mut s = self.size;
-        let e = Entry(k, v);
-
-        if let None = self.hamt.find(&e) {
-            s += 1;
-        }
+        let (h, b) = self.hamt.insert(Entry(k, v));
 
         Map {
-            size: s,
-            hamt: self.hamt.insert(e),
+            size: self.size + (b as usize),
+            hamt: h,
         }
     }
 
