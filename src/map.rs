@@ -5,7 +5,7 @@ use std::mem::uninitialized;
 use hamt::Hamt;
 use node::Node;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Map<K, V> {
     size: usize,
     hamt: Hamt<Entry<K, V>>,

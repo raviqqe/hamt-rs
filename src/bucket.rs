@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use node::Node;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Bucket<K>(Arc<Vec<K>>);
 
 impl<K> Bucket<K> {

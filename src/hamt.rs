@@ -7,7 +7,7 @@ use node::Node;
 
 const MAX_LEVEL: u8 = 64 / 5;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum Entry<K> {
     Empty,
     Key(K),
@@ -21,7 +21,7 @@ impl<K> Default for Entry<K> {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Hamt<K> {
     // TODO: Use bitmap.
     level: u8,
