@@ -4,55 +4,68 @@ use std::sync::Arc;
 use node::Node;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct Bucket<K>(Arc<Vec<K>>);
+pub struct Bucket<K, V>(Arc<Vec<(K, V)>>);
 
-impl<K> Bucket<K> {
-    pub fn new(k: K) -> Self {
-        Bucket(Arc::new(vec![k]))
+impl<K, V> Bucket<K, V> {
+    pub fn new(k: K, v: V) -> Self {
+        Bucket(Arc::new(vec![(k, v)]))
     }
 }
 
-impl<K: Clone + Hash + Ord> Node for Bucket<K> {
-    type Key = K;
-
-    fn insert(&self, k: K) -> (Self, bool) {
-        let mut v = (*self.0).clone();
-        let i = self.0.binary_search(&k);
-
-        v.insert(
-            match i {
-                Ok(i) => i,
-                Err(i) => i,
-            },
-            k,
-        );
-
-        (Bucket(Arc::new(v)), i.is_err())
-    }
-
-    fn delete(&self, k: &K) -> Option<Self> {
-        match self.0.binary_search(&k) {
-            Ok(i) => {
-                let mut v = (*self.0).clone();
-                v.remove(i);
-                Some(Bucket(Arc::new(v)))
+impl<K: PartialEq, V> Bucket<K, V> {
+    fn find_index(&self, k: &K) -> Option<usize> {
+        for (i, &(ref kk, _)) in self.0.iter().enumerate() {
+            if *k == *kk {
+                return Some(i);
             }
-            _ => None,
+        }
+
+        None
+    }
+}
+
+impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
+    type Key = K;
+    type Value = V;
+
+    fn insert(&self, k: K, v: V) -> (Self, bool) {
+        let mut kvs = (*self.0).clone();
+
+        match self.find_index(&k) {
+            Some(i) => {
+                kvs[i] = (k, v);
+                (Bucket(Arc::new(kvs)), false)
+            }
+            None => {
+                kvs.push((k, v));
+                (Bucket(Arc::new(kvs)), true)
+            }
         }
     }
 
-    fn find(&self, k: &K) -> Option<&K> {
-        self.0.binary_search(k).ok().map(|i| &self.0[i])
+    fn delete(&self, k: &K) -> Option<Self> {
+        self.find_index(k).map(|i| {
+            let mut v = (*self.0).clone();
+            v.remove(i);
+            Bucket(Arc::new(v))
+        })
     }
 
-    fn first_rest(&self) -> Option<(&K, Self)> {
+    fn find(&self, k: &K) -> Option<(&K, &V)> {
+        self.find_index(k).map(|i| {
+            let (ref k, ref v) = self.0[i];
+            (k, v)
+        })
+    }
+
+    fn first_rest(&self) -> Option<(&K, &V, Self)> {
         if self.0.is_empty() {
             return None;
         }
 
-        let mut v = (*self.0).clone();
-        v.remove(0);
-        Some((&self.0[0], Bucket(Arc::new(v))))
+        let mut kvs = (*self.0).clone();
+        kvs.remove(0);
+        Some((&self.0[0].0, &self.0[0].1, Bucket(Arc::new(kvs))))
     }
 
     fn is_singleton(&self) -> bool {
@@ -70,16 +83,16 @@ mod test {
 
     #[test]
     fn new() {
-        Bucket::new(42);
+        Bucket::new(42, 0);
     }
 
     #[test]
     fn insert() {
-        let b = Bucket::new(42);
+        let b = Bucket::new(42, 0);
 
         assert_eq!(b.size(), 1);
 
-        let (bb, new) = b.insert(0);
+        let (bb, new) = b.insert(0, 0);
 
         assert!(new);
         assert_eq!(b.size(), 1);
@@ -88,37 +101,37 @@ mod test {
 
     #[test]
     fn delete() {
-        let b = Bucket::new(42);
+        let b = Bucket::new(42, 0);
 
         assert_eq!(b.delete(&42).unwrap().size(), 0);
-        assert_eq!(b.insert(0).0.delete(&42).unwrap(), Bucket::new(0));
+        assert_eq!(b.insert(0, 0).0.delete(&42).unwrap(), Bucket::new(0, 0));
     }
 
     #[test]
     fn find() {
-        let b = Bucket::new(42);
+        let b = Bucket::new(42, 0);
 
-        assert_eq!(b.find(&42), Some(&42));
+        assert_eq!(b.find(&42), Some((&42, &0)));
         assert_eq!(b.find(&0), None);
     }
 
     #[test]
     fn first_rest() {
-        let b = Bucket::new(42).insert(0).0;
+        let b = Bucket::new(42, 0).insert(0, 0).0;
 
-        assert_eq!(b.first_rest(), Some((&0, Bucket::new(42))));
+        assert_eq!(b.first_rest(), Some((&42, &0, Bucket::new(0, 0))));
         assert_eq!(
             b.delete(&0).unwrap().first_rest(),
-            Some((&42, b.delete(&0).unwrap().delete(&42).unwrap()))
+            Some((&42, &0, b.delete(&0).unwrap().delete(&42).unwrap()))
         );
     }
 
     #[test]
     fn is_singleton() {
-        let b = Bucket::new(42);
+        let b = Bucket::new(42, 0);
 
         assert!(!b.delete(&42).unwrap().is_singleton());
         assert!(b.is_singleton());
-        assert!(!b.insert(0).0.is_singleton());
+        assert!(!b.insert(0, 0).0.is_singleton());
     }
 }

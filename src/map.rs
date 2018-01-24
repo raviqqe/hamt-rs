@@ -1,6 +1,4 @@
-use std::cmp::Ordering;
-use std::hash::{Hash, Hasher};
-use std::mem::uninitialized;
+use std::hash::Hash;
 
 use hamt::Hamt;
 use node::Node;
@@ -8,10 +6,10 @@ use node::Node;
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Map<K, V> {
     size: usize,
-    hamt: Hamt<Entry<K, V>>,
+    hamt: Hamt<K, V>,
 }
 
-impl<K: Clone + Hash + Ord, V: Clone> Map<K, V> {
+impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     pub fn new() -> Self {
         Map {
             size: 0,
@@ -20,7 +18,7 @@ impl<K: Clone + Hash + Ord, V: Clone> Map<K, V> {
     }
 
     pub fn insert(&self, k: K, v: V) -> Self {
-        let (h, b) = self.hamt.insert(Entry(k, v));
+        let (h, b) = self.hamt.insert(k, v);
 
         Map {
             size: self.size + (b as usize),
@@ -28,24 +26,22 @@ impl<K: Clone + Hash + Ord, V: Clone> Map<K, V> {
         }
     }
 
-    pub fn delete(&self, k: K) -> Option<Self> {
-        self.hamt.delete(&Self::key_only_entry(k)).map(|h| Map {
+    pub fn delete(&self, k: &K) -> Option<Self> {
+        self.hamt.delete(k).map(|h| Map {
             size: self.size - 1,
             hamt: h,
         })
     }
 
-    pub fn find(&self, k: K) -> Option<(&K, &V)> {
-        self.hamt
-            .find(&Self::key_only_entry(k))
-            .map(|e| (&e.0, &e.1))
+    pub fn find(&self, k: &K) -> Option<(&K, &V)> {
+        self.hamt.find(k)
     }
 
     pub fn first_rest(&self) -> Option<(&K, &V, Self)> {
-        self.hamt.first_rest().map(|(e, h)| {
+        self.hamt.first_rest().map(|(k, v, h)| {
             (
-                &e.0,
-                &e.1,
+                k,
+                v,
                 Map {
                     size: self.size - 1,
                     hamt: h,
@@ -56,39 +52,6 @@ impl<K: Clone + Hash + Ord, V: Clone> Map<K, V> {
 
     pub fn size(&self) -> usize {
         self.size
-    }
-
-    fn key_only_entry(k: K) -> Entry<K, V> {
-        Entry(k, unsafe { uninitialized() })
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Entry<K, V>(K, V);
-
-impl<K: Hash, V> Hash for Entry<K, V> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
-    }
-}
-
-impl<K: Ord, V> Ord for Entry<K, V> {
-    fn cmp(&self, e: &Self) -> Ordering {
-        self.0.cmp(&e.0)
-    }
-}
-
-impl<K: PartialOrd, V> PartialOrd for Entry<K, V> {
-    fn partial_cmp(&self, e: &Self) -> Option<Ordering> {
-        self.0.partial_cmp(&e.0)
-    }
-}
-
-impl<K: PartialEq, V> Eq for Entry<K, V> {}
-
-impl<K: PartialEq, V> PartialEq for Entry<K, V> {
-    fn eq(&self, e: &Self) -> bool {
-        self.0 == e.0
     }
 }
 
@@ -141,11 +104,11 @@ mod test {
     fn delete() {
         let h = Map::new();
 
-        assert_eq!(h.insert(0, 0).delete(0), Some(h.clone()));
-        assert_eq!(h.insert(0, 0).delete(1), None);
-        assert_eq!(h.insert(0, 0).insert(1, 0).delete(0), Some(h.insert(1, 0)));
-        assert_eq!(h.insert(0, 0).insert(1, 0).delete(1), Some(h.insert(0, 0)));
-        assert_eq!(h.insert(0, 0).insert(1, 0).delete(2), None);
+        assert_eq!(h.insert(0, 0).delete(&0), Some(h.clone()));
+        assert_eq!(h.insert(0, 0).delete(&1), None);
+        assert_eq!(h.insert(0, 0).insert(1, 0).delete(&0), Some(h.insert(1, 0)));
+        assert_eq!(h.insert(0, 0).insert(1, 0).delete(&1), Some(h.insert(0, 0)));
+        assert_eq!(h.insert(0, 0).insert(1, 0).delete(&2), None);
     }
 
     #[test]
@@ -155,18 +118,18 @@ mod test {
         for _ in 0..NUM_ITERATIONS {
             let k = random();
             let s = h.size();
-            let found = h.find(k).is_some();
+            let found = h.find(&k).is_some();
 
             if random() {
                 h = h.insert(k, k);
 
                 assert_eq!(h.size(), if found { s } else { s + 1 });
-                assert_eq!(h.find(k), Some((&k, &k)));
+                assert_eq!(h.find(&k), Some((&k, &k)));
             } else {
-                h = h.delete(k).unwrap_or(h);
+                h = h.delete(&k).unwrap_or(h);
 
                 assert_eq!(h.size(), if found { s - 1 } else { s });
-                assert_eq!(h.find(k), None);
+                assert_eq!(h.find(&k), None);
             }
         }
     }
@@ -175,13 +138,13 @@ mod test {
     fn find() {
         let h = Map::new();
 
-        assert_eq!(h.insert(0, 0).find(0), Some((&0, &0)));
-        assert_eq!(h.insert(0, 0).find(1), None);
-        assert_eq!(h.insert(1, 0).find(0), None);
-        assert_eq!(h.insert(1, 0).find(1), Some((&1, &0)));
-        assert_eq!(h.insert(0, 0).insert(1, 0).find(0), Some((&0, &0)));
-        assert_eq!(h.insert(0, 0).insert(1, 0).find(1), Some((&1, &0)));
-        assert_eq!(h.insert(0, 0).insert(1, 0).find(2), None);
+        assert_eq!(h.insert(0, 0).find(&0), Some((&0, &0)));
+        assert_eq!(h.insert(0, 0).find(&1), None);
+        assert_eq!(h.insert(1, 0).find(&0), None);
+        assert_eq!(h.insert(1, 0).find(&1), Some((&1, &0)));
+        assert_eq!(h.insert(0, 0).insert(1, 0).find(&0), Some((&0, &0)));
+        assert_eq!(h.insert(0, 0).insert(1, 0).find(&1), Some((&1, &0)));
+        assert_eq!(h.insert(0, 0).insert(1, 0).find(&2), None);
     }
 
     #[test]
@@ -199,7 +162,7 @@ mod test {
                 let (f, _, r) = h.first_rest().unwrap();
 
                 assert_eq!(r.size(), h.size() - 1);
-                assert_eq!(r.find(*f), None);
+                assert_eq!(r.find(f), None);
 
                 new = r;
             }
@@ -226,7 +189,7 @@ mod test {
                 }
 
                 for d in &ds {
-                    *h = h.delete(*d).unwrap_or(h.clone());
+                    *h = h.delete(d).unwrap_or(h.clone());
                 }
             }
 
