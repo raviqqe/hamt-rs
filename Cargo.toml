@@ -1,7 +1,9 @@
 [package]
 name = "hamt-sync"
+description = "HAMT: Send + Sync"
 version = "0.1.0"
 authors = ["Yota Toyama <raviqqe@gmail.com>"]
+license = "MIT"
 
 [dependencies]
 rand = "0.4"
