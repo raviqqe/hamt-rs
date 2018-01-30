@@ -12,6 +12,12 @@ impl<K, V> Bucket<K, V> {
     }
 }
 
+impl<K, V> Bucket<K, V> {
+    pub fn to_vec(&self) -> &Vec<(K, V)> {
+        &self.0
+    }
+}
+
 impl<K: PartialEq, V> Bucket<K, V> {
     fn find_index(&self, k: &K) -> Option<usize> {
         for (i, &(ref kk, _)) in self.0.iter().enumerate() {

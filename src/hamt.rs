@@ -6,6 +6,7 @@ use bucket::Bucket;
 use node::Node;
 
 const MAX_LEVEL: u8 = 64 / 5;
+const NUM_ENTRIES: usize = 32;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum Entry<K, V> {
@@ -25,7 +26,7 @@ impl<K, V> Default for Entry<K, V> {
 pub struct Hamt<K, V> {
     // TODO: Use bitmap.
     level: u8,
-    entries: [Entry<K, V>; 32],
+    entries: [Entry<K, V>; NUM_ENTRIES],
 }
 
 impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
@@ -46,7 +47,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
         self.from_entries(es)
     }
 
-    fn from_entries(&self, es: [Entry<K, V>; 32]) -> Self {
+    fn from_entries(&self, es: [Entry<K, V>; NUM_ENTRIES]) -> Self {
         Hamt {
             level: self.level,
             entries: es,
@@ -218,6 +219,63 @@ fn hash<K: Hash>(k: &K) -> u64 {
     let mut h = DefaultHasher::new();
     k.hash(&mut h);
     h.finish()
+}
+
+#[derive(Debug)]
+enum NodeRef<'a, K: 'a, V: 'a> {
+    Hamt(&'a Hamt<K, V>),
+    Bucket(&'a Bucket<K, V>),
+}
+
+#[derive(Debug)]
+pub struct HamtIterator<'a, K: 'a, V: 'a>(Vec<(NodeRef<'a, K, V>, usize)>);
+
+impl<'a, K, V> IntoIterator for &'a Hamt<K, V> {
+    type Item = (&'a K, &'a V);
+    type IntoIter = HamtIterator<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        HamtIterator(vec![(NodeRef::Hamt(&self), 0)])
+    }
+}
+
+impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
+    type Item = (&'a K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.pop().and_then(|t| match t {
+            (NodeRef::Hamt(h), i) => {
+                if i == NUM_ENTRIES {
+                    return self.next();
+                }
+
+                self.0.push((t.0, i + 1));
+
+                match h.entries[i] {
+                    Entry::Empty => self.next(),
+                    Entry::Hamt(ref h) => {
+                        self.0.push((NodeRef::Hamt(h), 0));
+                        self.next()
+                    }
+                    Entry::KeyValue(ref k, ref v) => Some((k, v)),
+                    Entry::Bucket(ref b) => {
+                        self.0.push((NodeRef::Bucket(b), 0));
+                        self.next()
+                    }
+                }
+            }
+            (NodeRef::Bucket(b), i) => {
+                if i == b.to_vec().len() {
+                    return self.next();
+                }
+
+                self.0.push((t.0, i + 1));
+
+                let (ref k, ref v) = b.to_vec()[i];
+                return Some((k, v));
+            }
+        })
+    }
 }
 
 #[cfg(test)]
@@ -420,6 +478,42 @@ mod test {
         }
 
         assert!(h.contain_bucket());
+    }
+
+    #[test]
+    fn iterator() {
+        let mut ss: Vec<usize> = (0..42).collect();
+
+        for _ in 0..100 {
+            ss.push(random::<usize>() % 1024);
+        }
+
+        for l in vec![0, MAX_LEVEL] {
+            for s in &ss {
+                let mut h: Hamt<i16, i16> = Hamt::new(l);
+                let mut m: HashMap<i16, i16> = HashMap::new();
+
+                for _ in 0..*s {
+                    let k = random();
+                    let v = random();
+
+                    let (hh, _) = h.insert(k, v);
+                    h = hh;
+
+                    m.insert(k, v);
+                }
+
+                let mut s = 0;
+
+                for (k, v) in h.into_iter() {
+                    s += 1;
+
+                    assert_eq!(m[k], *v);
+                }
+
+                assert_eq!(s, h.size());
+            }
+        }
     }
 
     fn keys() -> Vec<i16> {
