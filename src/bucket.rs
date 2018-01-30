@@ -4,6 +4,7 @@ use std::sync::Arc;
 use node::Node;
 
 // TODO: Fix Eq and PartialEq impl.
+// TODO: Unwrap Arc.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Bucket<K, V>(Arc<Vec<(K, V)>>);
 
