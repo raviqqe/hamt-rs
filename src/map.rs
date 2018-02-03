@@ -55,6 +55,25 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 }
 
+pub struct MapIterator<'a, K: 'a, V: 'a>(HamtIterator<'a, K, V>);
+
+impl<'a, K, V> Iterator for MapIterator<'a, K, V> {
+    type Item = (&'a K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+impl<'a, K, V> IntoIterator for &'a Map<K, V> {
+    type Item = (&'a K, &'a V);
+    type IntoIter = MapIterator<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        MapIterator(self.hamt.into_iter())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use rand::{random, thread_rng, Rng};
@@ -228,24 +247,5 @@ mod test {
                 h.find(&k);
             }
         });
-    }
-}
-
-pub struct MapIterator<'a, K: 'a, V: 'a>(HamtIterator<'a, K, V>);
-
-impl<'a, K, V> Iterator for MapIterator<'a, K, V> {
-    type Item = (&'a K, &'a V);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
-
-impl<'a, K, V> IntoIterator for &'a Map<K, V> {
-    type Item = (&'a K, &'a V);
-    type IntoIter = MapIterator<'a, K, V>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        MapIterator(self.hamt.into_iter())
     }
 }
