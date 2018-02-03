@@ -76,6 +76,8 @@ impl<'a, K, V> IntoIterator for &'a Map<K, V> {
 
 #[cfg(test)]
 mod test {
+    use std::thread::spawn;
+
     use rand::{random, thread_rng, Rng};
     use test::Bencher;
 
@@ -214,6 +216,14 @@ mod test {
 
             assert_eq!(hs[0], hs[1]);
         }
+    }
+
+    #[test]
+    fn send_and_sync() {
+        let m: Map<usize, usize> = Map::new();
+        spawn(move || m);
+        let m: Map<String, String> = Map::new();
+        spawn(move || m);
     }
 
     fn keys() -> Vec<i16> {
