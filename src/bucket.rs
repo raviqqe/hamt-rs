@@ -59,11 +59,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
         })
     }
 
-    fn find(&self, k: &K) -> Option<(&K, &V)> {
-        self.find_index(k).map(|i| {
-            let (ref k, ref v) = self.0[i];
-            (k, v)
-        })
+    fn find(&self, k: &K) -> Option<&V> {
+        self.find_index(k).map(|i| &self.0[i].1)
     }
 
     fn first_rest(&self) -> Option<(&K, &V, Self)> {
@@ -119,7 +116,7 @@ mod test {
     fn find() {
         let b = Bucket::new(42, 0);
 
-        assert_eq!(b.find(&42), Some((&42, &0)));
+        assert_eq!(b.find(&42), Some(&0));
         assert_eq!(b.find(&0), None);
     }
 

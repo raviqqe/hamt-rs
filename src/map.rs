@@ -33,7 +33,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
         })
     }
 
-    pub fn find(&self, k: &K) -> Option<(&K, &V)> {
+    pub fn find(&self, k: &K) -> Option<&V> {
         self.hamt.find(k)
     }
 
@@ -145,7 +145,7 @@ mod test {
                 h = h.insert(k, k);
 
                 assert_eq!(h.size(), if found { s } else { s + 1 });
-                assert_eq!(h.find(&k), Some((&k, &k)));
+                assert_eq!(h.find(&k), Some(&k));
             } else {
                 h = h.delete(&k).unwrap_or(h);
 
@@ -159,12 +159,12 @@ mod test {
     fn find() {
         let h = Map::new();
 
-        assert_eq!(h.insert(0, 0).find(&0), Some((&0, &0)));
+        assert_eq!(h.insert(0, 0).find(&0), Some(&0));
         assert_eq!(h.insert(0, 0).find(&1), None);
         assert_eq!(h.insert(1, 0).find(&0), None);
-        assert_eq!(h.insert(1, 0).find(&1), Some((&1, &0)));
-        assert_eq!(h.insert(0, 0).insert(1, 0).find(&0), Some((&0, &0)));
-        assert_eq!(h.insert(0, 0).insert(1, 0).find(&1), Some((&1, &0)));
+        assert_eq!(h.insert(1, 0).find(&1), Some(&0));
+        assert_eq!(h.insert(0, 0).insert(1, 0).find(&0), Some(&0));
+        assert_eq!(h.insert(0, 0).insert(1, 0).find(&1), Some(&0));
         assert_eq!(h.insert(0, 0).insert(1, 0).find(&2), None);
     }
 

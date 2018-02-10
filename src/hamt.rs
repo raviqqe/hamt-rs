@@ -139,11 +139,11 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
         ))
     }
 
-    fn find(&self, k: &K) -> Option<(&K, &V)> {
+    fn find(&self, k: &K) -> Option<&V> {
         match self.entries[self.entry_index(k)] {
             Entry::Empty => None,
             Entry::KeyValue(ref kk, ref vv) => if *kk == *k {
-                Some((kk, vv))
+                Some(vv)
             } else {
                 None
             },
@@ -369,7 +369,7 @@ mod test {
                 h = h.insert(k, k).0;
 
                 assert_eq!(h.size(), if found { s } else { s + 1 });
-                assert_eq!(h.find(&k), Some((&k, &k)));
+                assert_eq!(h.find(&k), Some(&k));
             } else {
                 h = h.delete(&k).unwrap_or(h);
 
@@ -385,12 +385,12 @@ mod test {
     fn find() {
         let h = Hamt::new(0);
 
-        assert_eq!(h.insert(0, 0).0.find(&0), Some((&0, &0)));
+        assert_eq!(h.insert(0, 0).0.find(&0), Some(&0));
         assert_eq!(h.insert(0, 0).0.find(&1), None);
         assert_eq!(h.insert(1, 0).0.find(&0), None);
-        assert_eq!(h.insert(1, 0).0.find(&1), Some((&1, &0)));
-        assert_eq!(h.insert(0, 0).0.insert(1, 0).0.find(&0), Some((&0, &0)));
-        assert_eq!(h.insert(0, 0).0.insert(1, 0).0.find(&1), Some((&1, &0)));
+        assert_eq!(h.insert(1, 0).0.find(&1), Some(&0));
+        assert_eq!(h.insert(0, 0).0.insert(1, 0).0.find(&0), Some(&0));
+        assert_eq!(h.insert(0, 0).0.insert(1, 0).0.find(&1), Some(&0));
         assert_eq!(h.insert(0, 0).0.insert(1, 0).0.find(&2), None);
     }
 
