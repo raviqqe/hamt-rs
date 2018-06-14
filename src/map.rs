@@ -66,8 +66,8 @@ impl<'a, K, V> Iterator for MapIterator<'a, K, V> {
 }
 
 impl<'a, K, V> IntoIterator for &'a Map<K, V> {
-    type Item = (&'a K, &'a V);
     type IntoIter = MapIterator<'a, K, V>;
+    type Item = (&'a K, &'a V);
 
     fn into_iter(self) -> Self::IntoIter {
         MapIterator(self.hamt.into_iter())

@@ -33,8 +33,8 @@ impl<K: PartialEq, V> Bucket<K, V> {
 }
 
 impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
-    type Key = K;
     type Value = V;
+    type Key = K;
 
     fn insert(&self, k: K, v: V) -> (Self, bool) {
         let mut kvs = (*self.0).clone();
