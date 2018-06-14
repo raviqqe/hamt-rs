@@ -73,8 +73,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
 }
 
 impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
-    type Value = V;
     type Key = K;
+    type Value = V;
 
     fn insert(&self, k: K, v: V) -> (Self, bool) {
         let i = self.entry_index(&k);
@@ -231,8 +231,8 @@ enum NodeRef<'a, K: 'a, V: 'a> {
 pub struct HamtIterator<'a, K: 'a, V: 'a>(Vec<(NodeRef<'a, K, V>, usize)>);
 
 impl<'a, K, V> IntoIterator for &'a Hamt<K, V> {
-    type IntoIter = HamtIterator<'a, K, V>;
     type Item = (&'a K, &'a V);
+    type IntoIter = HamtIterator<'a, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
         HamtIterator(vec![(NodeRef::Hamt(&self), 0)])
