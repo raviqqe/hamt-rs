@@ -182,8 +182,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                 Entry::Empty => 0,
                 Entry::KeyValue(_, _) => 1,
                 _ => 2,
-            })
-            .sum::<usize>() == 1
+            }).sum::<usize>()
+            == 1
     }
 
     fn size(&self) -> usize {
@@ -194,8 +194,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                 Entry::KeyValue(_, _) => 1,
                 Entry::Hamt(ref h) => h.size(),
                 Entry::Bucket(ref b) => b.size(),
-            })
-            .sum()
+            }).sum()
     }
 }
 
@@ -231,8 +230,8 @@ enum NodeRef<'a, K: 'a, V: 'a> {
 pub struct HamtIterator<'a, K: 'a, V: 'a>(Vec<(NodeRef<'a, K, V>, usize)>);
 
 impl<'a, K, V> IntoIterator for &'a Hamt<K, V> {
-    type Item = (&'a K, &'a V);
     type IntoIter = HamtIterator<'a, K, V>;
+    type Item = (&'a K, &'a V);
 
     fn into_iter(self) -> Self::IntoIter {
         HamtIterator(vec![(NodeRef::Hamt(&self), 0)])
