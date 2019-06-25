@@ -87,12 +87,10 @@ impl<'a, K, V> IntoIterator for &'a Map<K, V> {
 
 #[cfg(test)]
 mod test {
-    use std::thread::spawn;
-
-    use rand::{random, thread_rng, Rng};
-    use test::Bencher;
-
     use super::Map;
+    use rand::{random, seq::SliceRandom, thread_rng};
+    use std::thread::spawn;
+    use test::Bencher;
 
     const NUM_ITERATIONS: usize = 1 << 12;
 
@@ -213,8 +211,8 @@ mod test {
             let mut ds: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
 
             for h in hs.iter_mut() {
-                thread_rng().shuffle(&mut is);
-                thread_rng().shuffle(&mut ds);
+                is.shuffle(&mut thread_rng());
+                ds.shuffle(&mut thread_rng());
 
                 for i in &is {
                     *h = h.insert(*i, *i);
