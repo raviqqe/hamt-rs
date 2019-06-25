@@ -5,14 +5,6 @@ jobs:
       - image: rustlang/rust:nightly
     steps:
       - checkout
-      - run:
-          name: Build
-          command: |
-            cargo build
-            cargo build --release
-      - run:
-          name: Test
-          command: cargo test
-      - run:
-          name: Benchmark
-          command: cargo bench
+      - run: cargo build
+      - run: cargo test
+      - run: cargo bench

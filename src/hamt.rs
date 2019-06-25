@@ -122,11 +122,13 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
             i,
             match self.entries[i] {
                 Entry::Empty => return None,
-                Entry::KeyValue(ref kk, _) => if *kk == *k {
-                    Entry::Empty
-                } else {
-                    return None;
-                },
+                Entry::KeyValue(ref kk, _) => {
+                    if *kk == *k {
+                        Entry::Empty
+                    } else {
+                        return None;
+                    }
+                }
                 Entry::Hamt(ref h) => match h.delete(k) {
                     None => return None,
                     Some(h) => node_to_entry(&h, |h| Entry::Hamt(Arc::new(h))),
@@ -142,11 +144,13 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
     fn find(&self, k: &K) -> Option<&V> {
         match self.entries[self.entry_index(k)] {
             Entry::Empty => None,
-            Entry::KeyValue(ref kk, ref vv) => if *kk == *k {
-                Some(vv)
-            } else {
-                None
-            },
+            Entry::KeyValue(ref kk, ref vv) => {
+                if *kk == *k {
+                    Some(vv)
+                } else {
+                    None
+                }
+            }
             Entry::Hamt(ref h) => h.find(k),
             Entry::Bucket(ref b) => b.find(k),
         }
@@ -182,7 +186,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                 Entry::Empty => 0,
                 Entry::KeyValue(_, _) => 1,
                 _ => 2,
-            }).sum::<usize>()
+            })
+            .sum::<usize>()
             == 1
     }
 
@@ -194,7 +199,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                 Entry::KeyValue(_, _) => 1,
                 Entry::Hamt(ref h) => h.size(),
                 Entry::Bucket(ref b) => b.size(),
-            }).sum()
+            })
+            .sum()
     }
 }
 
