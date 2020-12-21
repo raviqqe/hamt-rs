@@ -6,4 +6,4 @@ authors = ["Yota Toyama <raviqqe@gmail.com>"]
 license = "MIT"
 
 [dependencies]
-rand = "0.7"
+rand = "0.8"
