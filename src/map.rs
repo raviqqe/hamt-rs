@@ -22,38 +22,38 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 
     /// Inserts a key-value pair into a map.
-    pub fn insert(&self, k: K, v: V) -> Self {
-        let (h, b) = self.hamt.insert(k, v);
+    pub fn insert(&self, key: K, value: V) -> Self {
+        let (hamt, ok) = self.hamt.insert(key, value);
 
         Map {
-            size: self.size + (b as usize),
-            hamt: h,
+            size: self.size + (ok as usize),
+            hamt,
         }
     }
 
     /// Deletes a key and its corresponding value from a map.
-    pub fn delete(&self, k: &K) -> Option<Self> {
-        self.hamt.delete(k).map(|h| Map {
+    pub fn delete(&self, key: &K) -> Option<Self> {
+        self.hamt.delete(key).map(|hamt| Map {
             size: self.size - 1,
-            hamt: h,
+            hamt,
         })
     }
 
     /// Finds a key and its corresponding value in a map.
-    pub fn find(&self, k: &K) -> Option<&V> {
-        self.hamt.find(k)
+    pub fn find(&self, key: &K) -> Option<&V> {
+        self.hamt.find(key)
     }
 
     /// Removes the first element in a map and returns a new map containing the
     /// rest of elements.
     pub fn first_rest(&self) -> Option<(&K, &V, Self)> {
-        self.hamt.first_rest().map(|(k, v, h)| {
+        self.hamt.first_rest().map(|(key, value, hamt)| {
             (
-                k,
-                v,
+                key,
+                value,
                 Map {
                     size: self.size - 1,
-                    hamt: h,
+                    hamt,
                 },
             )
         })
