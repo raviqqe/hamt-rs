@@ -106,169 +106,170 @@ mod test {
 
     #[test]
     fn insert() {
-        let h = Map::new();
+        let map = Map::new();
 
-        assert_eq!(h.size(), 0);
-        assert_eq!(h.insert(0, 0).size(), 1);
-        assert_eq!(h.insert(0, 0).insert(0, 0).size(), 1);
-        assert_eq!(h.insert(0, 0).insert(1, 0).size(), 2);
+        assert_eq!(map.size(), 0);
+        assert_eq!(map.insert(0, 0).size(), 1);
+        assert_eq!(map.insert(0, 0).insert(0, 0).size(), 1);
+        assert_eq!(map.insert(0, 0).insert(1, 0).size(), 2);
     }
 
     #[test]
     fn insert_many_in_order() {
-        let mut h = Map::new();
+        let mut map = Map::new();
 
-        for i in 0..NUM_ITERATIONS {
-            h = h.insert(i, i);
-            assert_eq!(h.size(), i + 1);
+        for index in 0..NUM_ITERATIONS {
+            map = map.insert(index, index);
+            assert_eq!(map.size(), index + 1);
         }
     }
 
     #[test]
     fn insert_many_at_random() {
-        let mut h: Map<usize, usize> = Map::new();
+        let mut map: Map<usize, usize> = Map::new();
 
-        for i in 0..NUM_ITERATIONS {
-            let k = random();
-            h = h.insert(k, k);
-            assert_eq!(h.size(), i + 1);
+        for index in 0..NUM_ITERATIONS {
+            let ey = random();
+            map = map.insert(ey, ey);
+            assert_eq!(map.size(), index + 1);
         }
     }
 
     #[test]
     fn delete() {
-        let h = Map::new();
+        let map = Map::new();
 
-        assert_eq!(h.insert(0, 0).delete(&0), Some(h.clone()));
-        assert_eq!(h.insert(0, 0).delete(&1), None);
-        assert_eq!(h.insert(0, 0).insert(1, 0).delete(&0), Some(h.insert(1, 0)));
-        assert_eq!(h.insert(0, 0).insert(1, 0).delete(&1), Some(h.insert(0, 0)));
-        assert_eq!(h.insert(0, 0).insert(1, 0).delete(&2), None);
+        assert_eq!(map.insert(0, 0).delete(&0), Some(map.clone()));
+        assert_eq!(map.insert(0, 0).delete(&1), None);
+        assert_eq!(
+            map.insert(0, 0).insert(1, 0).delete(&0),
+            Some(map.insert(1, 0))
+        );
+        assert_eq!(
+            map.insert(0, 0).insert(1, 0).delete(&1),
+            Some(map.insert(0, 0))
+        );
+        assert_eq!(map.insert(0, 0).insert(1, 0).delete(&2), None);
     }
 
     #[test]
     fn insert_delete_many() {
-        let mut h: Map<i16, i16> = Map::new();
+        let mut map: Map<i16, i16> = Map::new();
 
         for _ in 0..NUM_ITERATIONS {
-            let k = random();
-            let s = h.size();
-            let found = h.find(&k).is_some();
+            let key = random();
+            let size = map.size();
+            let found = map.find(&key).is_some();
 
             if random() {
-                h = h.insert(k, k);
+                map = map.insert(key, key);
 
-                assert_eq!(h.size(), if found { s } else { s + 1 });
-                assert_eq!(h.find(&k), Some(&k));
+                assert_eq!(map.size(), if found { size } else { size + 1 });
+                assert_eq!(map.find(&key), Some(&key));
             } else {
-                h = h.delete(&k).unwrap_or(h);
+                map = map.delete(&key).unwrap_or(map);
 
-                assert_eq!(h.size(), if found { s - 1 } else { s });
-                assert_eq!(h.find(&k), None);
+                assert_eq!(map.size(), if found { size - 1 } else { size });
+                assert_eq!(map.find(&key), None);
             }
         }
     }
 
     #[test]
     fn find() {
-        let h = Map::new();
+        let map = Map::new();
 
-        assert_eq!(h.insert(0, 0).find(&0), Some(&0));
-        assert_eq!(h.insert(0, 0).find(&1), None);
-        assert_eq!(h.insert(1, 0).find(&0), None);
-        assert_eq!(h.insert(1, 0).find(&1), Some(&0));
-        assert_eq!(h.insert(0, 0).insert(1, 0).find(&0), Some(&0));
-        assert_eq!(h.insert(0, 0).insert(1, 0).find(&1), Some(&0));
-        assert_eq!(h.insert(0, 0).insert(1, 0).find(&2), None);
+        assert_eq!(map.insert(0, 0).find(&0), Some(&0));
+        assert_eq!(map.insert(0, 0).find(&1), None);
+        assert_eq!(map.insert(1, 0).find(&0), None);
+        assert_eq!(map.insert(1, 0).find(&1), Some(&0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).find(&0), Some(&0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).find(&1), Some(&0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).find(&2), None);
     }
 
     #[test]
     fn first_rest() {
-        let mut h: Map<i16, i16> = Map::new();
+        let mut map: Map<i16, i16> = Map::new();
 
         for _ in 0..NUM_ITERATIONS {
-            h = h.insert(random(), 0);
+            map = map.insert(random(), 0);
         }
 
-        for _ in 0..h.size() {
-            let new: Map<i16, i16>;
+        for _ in 0..map.size() {
+            let (key, _, rest) = map.first_rest().unwrap();
 
-            {
-                let (f, _, r) = h.first_rest().unwrap();
+            assert_eq!(rest.size(), map.size() - 1);
+            assert_eq!(rest.find(key), None);
 
-                assert_eq!(r.size(), h.size() - 1);
-                assert_eq!(r.find(f), None);
-
-                new = r;
-            }
-
-            h = new;
+            map = rest;
         }
 
-        assert_eq!(h, Map::new());
+        assert_eq!(map, Map::new());
     }
 
     #[test]
     fn equality() {
         for _ in 0..8 {
-            let mut hs: [Map<i16, i16>; 2] = [Map::new(), Map::new()];
-            let mut is: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
-            let mut ds: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
+            let mut maps: [Map<i16, i16>; 2] = [Map::new(), Map::new()];
+            let mut inserted_keys: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
+            let mut deleted_keys: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
 
-            for h in hs.iter_mut() {
-                is.shuffle(&mut thread_rng());
-                ds.shuffle(&mut thread_rng());
+            for map in maps.iter_mut() {
+                inserted_keys.shuffle(&mut thread_rng());
+                deleted_keys.shuffle(&mut thread_rng());
 
-                for i in &is {
-                    *h = h.insert(*i, *i);
+                for key in &inserted_keys {
+                    *map = map.insert(*key, *key);
                 }
 
-                for d in &ds {
-                    *h = h.delete(d).unwrap_or_else(|| h.clone());
+                for key in &deleted_keys {
+                    *map = map.delete(key).unwrap_or_else(|| map.clone());
                 }
             }
 
-            assert_eq!(hs[0], hs[1]);
+            assert_eq!(maps[0], maps[1]);
         }
     }
 
     #[test]
     fn send_and_sync() {
-        let m: Map<usize, usize> = Map::new();
-        spawn(move || m);
-        let m: Map<String, String> = Map::new();
-        spawn(move || m);
+        let map: Map<usize, usize> = Map::new();
+        spawn(move || map);
+
+        let map: Map<String, String> = Map::new();
+        spawn(move || map);
     }
 
-    fn keys() -> Vec<i16> {
+    fn generate_keys() -> Vec<i16> {
         (0..1000).collect()
     }
 
     #[bench]
-    fn bench_insert_1000(b: &mut Bencher) {
-        let ks = keys();
+    fn bench_insert_1000(bencher: &mut Bencher) {
+        let keys = generate_keys();
 
-        b.iter(|| {
-            let mut h = Map::new();
+        bencher.iter(|| {
+            let mut map = Map::new();
 
-            for k in &ks {
-                h = h.insert(k, k);
+            for key in &keys {
+                map = map.insert(key, key);
             }
         });
     }
 
     #[bench]
-    fn bench_find_1000(b: &mut Bencher) {
-        let ks = keys();
-        let mut h = Map::new();
+    fn bench_find_1000(bencher: &mut Bencher) {
+        let keys = generate_keys();
+        let mut map = Map::new();
 
-        for k in &ks {
-            h = h.insert(k, k);
+        for key in &keys {
+            map = map.insert(key, key);
         }
 
-        b.iter(|| {
-            for k in &ks {
-                h.find(&k);
+        bencher.iter(|| {
+            for key in &keys {
+                map.find(&key);
             }
         });
     }
