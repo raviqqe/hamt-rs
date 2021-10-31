@@ -55,7 +55,9 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
 
     #[cfg(test)]
     fn contain_bucket(&self) -> bool {
-        self.entries.iter().any(|e| matches!(e, Entry::Bucket(_)))
+        self.entries
+            .iter()
+            .any(|entry| matches!(entry, Entry::Bucket(_)))
     }
 
     #[cfg(test)]
