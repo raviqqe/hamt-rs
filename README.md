@@ -15,7 +15,7 @@ arrays and sets.
 
 ## Technical notes
 
-The implementation canonicalizes tree structures of HAMTs by eliminating
+The implementation normalizes tree structures of HAMTs by eliminating
 intermediate nodes during delete operations as described
 in [the CHAMP paper][champ].
 
