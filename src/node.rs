@@ -9,5 +9,6 @@ pub trait Node: Sized {
     fn find(&self, key: &Self::Key) -> Option<&Self::Value>;
     fn first_rest(&self) -> Option<(&Self::Key, &Self::Value, Self)>;
     fn is_singleton(&self) -> bool; // for normalization
+    #[cfg(test)]
     fn size(&self) -> usize; // for debugging
 }

@@ -9,8 +9,6 @@
 //! implement immutable and memory-efficient associative arrays and sets.
 
 #[cfg(test)]
-extern crate rand;
-#[cfg(test)]
 extern crate test;
 
 mod bucket;
