@@ -1,3 +1,4 @@
+#![cfg(test)]
 #![feature(test)]
 
 //! HAMT implementation whose sub-trees can be shared over threads.

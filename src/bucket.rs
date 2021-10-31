@@ -1,5 +1,4 @@
-use std::hash::Hash;
-use std::sync::Arc;
+use std::{hash::Hash, sync::Arc};
 
 use node::Node;
 

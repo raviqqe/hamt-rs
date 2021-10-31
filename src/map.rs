@@ -66,6 +66,12 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 }
 
+impl<K: Clone + Hash + PartialEq, V: Clone> Default for Map<K, V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct MapIterator<'a, K: 'a, V: 'a>(HamtIterator<'a, K, V>);
 
 impl<'a, K, V> Iterator for MapIterator<'a, K, V> {
@@ -96,7 +102,7 @@ mod test {
 
     #[test]
     fn new() {
-        Map::new() as Map<usize, usize>;
+        Map::<u8, u8>::new();
     }
 
     #[test]
@@ -219,7 +225,7 @@ mod test {
                 }
 
                 for d in &ds {
-                    *h = h.delete(d).unwrap_or(h.clone());
+                    *h = h.delete(d).unwrap_or_else(|| h.clone());
                 }
             }
 
