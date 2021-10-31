@@ -1,11 +1,10 @@
+use bucket::Bucket;
+use node::Node;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     sync::Arc,
 };
-
-use bucket::Bucket;
-use node::Node;
 
 const MAX_LEVEL: u8 = 64 / 5;
 const ENTRY_COUNT: usize = 32;
