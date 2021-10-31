@@ -8,7 +8,7 @@ use bucket::Bucket;
 use node::Node;
 
 const MAX_LEVEL: u8 = 64 / 5;
-const NUM_ENTRIES: usize = 32;
+const ENTRY_COUNT: usize = 32;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum Entry<K, V> {
@@ -28,7 +28,7 @@ impl<K, V> Default for Entry<K, V> {
 pub struct Hamt<K, V> {
     // TODO: Use bitmap.
     level: u8,
-    entries: [Entry<K, V>; NUM_ENTRIES],
+    entries: [Entry<K, V>; ENTRY_COUNT],
 }
 
 impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
@@ -249,7 +249,7 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.pop().and_then(|t| match t {
             (NodeRef::Hamt(h), i) => {
-                if i == NUM_ENTRIES {
+                if i == ENTRY_COUNT {
                     return self.next();
                 }
 
