@@ -203,25 +203,25 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
 }
 
 fn node_to_entry<N: Clone + Node>(
-    n: &N,
-    f: fn(N) -> Entry<N::Key, N::Value>,
+    node: &N,
+    to_entry: fn(N) -> Entry<N::Key, N::Value>,
 ) -> Entry<N::Key, N::Value>
 where
     N::Key: Clone,
     N::Value: Clone,
 {
-    if n.is_singleton() {
-        let (k, v, _) = n.first_rest().unwrap();
-        Entry::KeyValue(k.clone(), v.clone())
+    if node.is_singleton() {
+        let (key, value, _) = node.first_rest().unwrap();
+        Entry::KeyValue(key.clone(), value.clone())
     } else {
-        f(n.clone())
+        to_entry(node.clone())
     }
 }
 
-fn hash<K: Hash>(k: &K) -> u64 {
-    let mut h = DefaultHasher::new();
-    k.hash(&mut h);
-    h.finish()
+fn hash<K: Hash>(key: &K) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    key.hash(&mut hasher);
+    hasher.finish()
 }
 
 #[derive(Debug)]
@@ -247,34 +247,34 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.pop().and_then(|t| match t {
-            (NodeRef::Hamt(h), i) => {
-                if i == ENTRY_COUNT {
+            (NodeRef::Hamt(hamt), index) => {
+                if index == ENTRY_COUNT {
                     return self.next();
                 }
 
-                self.0.push((t.0, i + 1));
+                self.0.push((t.0, index + 1));
 
-                match &h.entries[i] {
+                match &hamt.entries[index] {
                     Entry::Empty => self.next(),
-                    Entry::Hamt(h) => {
-                        self.0.push((NodeRef::Hamt(h), 0));
+                    Entry::Hamt(hamt) => {
+                        self.0.push((NodeRef::Hamt(hamt), 0));
                         self.next()
                     }
-                    Entry::KeyValue(k, v) => Some((k, v)),
-                    Entry::Bucket(b) => {
-                        self.0.push((NodeRef::Bucket(b), 0));
+                    Entry::KeyValue(key, value) => Some((key, value)),
+                    Entry::Bucket(bucket) => {
+                        self.0.push((NodeRef::Bucket(bucket), 0));
                         self.next()
                     }
                 }
             }
-            (NodeRef::Bucket(b), i) => {
-                if i == b.to_vec().len() {
+            (NodeRef::Bucket(bucket), i) => {
+                if i == bucket.to_vec().len() {
                     return self.next();
                 }
 
                 self.0.push((t.0, i + 1));
 
-                let (k, v) = &b.to_vec()[i];
+                let (k, v) = &bucket.to_vec()[i];
                 Some((k, v))
             }
         })
@@ -297,102 +297,102 @@ mod test {
 
     #[test]
     fn insert() {
-        let h = Hamt::new(0);
+        let hamt = Hamt::new(0);
 
-        assert_eq!(h.size(), 0);
+        assert_eq!(hamt.size(), 0);
 
-        let (h, b) = h.insert(0, 0);
+        let (other, ok) = hamt.insert(0, 0);
 
-        assert!(b);
-        assert_eq!(h.size(), 1);
+        assert!(ok);
+        assert_eq!(other.size(), 1);
 
-        let (hh, b) = h.insert(0, 0);
+        let (other, ok) = other.insert(0, 0);
 
-        assert!(!b);
-        assert_eq!(hh.size(), 1);
+        assert!(!ok);
+        assert_eq!(other.size(), 1);
 
-        let (h, b) = h.insert(1, 0);
+        let (hamt, ok) = other.insert(1, 0);
 
-        assert!(b);
-        assert_eq!(h.size(), 2);
+        assert!(ok);
+        assert_eq!(hamt.size(), 2);
     }
 
     #[test]
     fn insert_many_in_order() {
-        let mut h = Hamt::new(0);
+        let mut hamt = Hamt::new(0);
 
-        for i in 0..NUM_ITERATIONS {
-            let (hh, b) = h.insert(i, i);
-            h = hh;
-            assert!(b);
-            assert_eq!(h.size(), i + 1);
+        for index in 0..NUM_ITERATIONS {
+            let (other, ok) = hamt.insert(index, index);
+            hamt = other;
+            assert!(ok);
+            assert_eq!(hamt.size(), index + 1);
         }
     }
 
     #[test]
     fn insert_many_at_random() {
-        let mut h: Hamt<usize, usize> = Hamt::new(0);
+        let mut hamt: Hamt<usize, usize> = Hamt::new(0);
 
-        for i in 0..NUM_ITERATIONS {
-            let k = random();
-            h = h.insert(k, k).0;
-            assert_eq!(h.size(), i + 1);
+        for index in 0..NUM_ITERATIONS {
+            let key = random();
+            hamt = hamt.insert(key, key).0;
+            assert_eq!(hamt.size(), index + 1);
         }
     }
 
     #[test]
     fn delete() {
-        let h = Hamt::new(0);
+        let hamt = Hamt::new(0);
 
-        assert_eq!(h.insert(0, 0).0.delete(&0), Some(h.clone()));
-        assert_eq!(h.insert(0, 0).0.delete(&1), None);
+        assert_eq!(hamt.insert(0, 0).0.delete(&0), Some(hamt.clone()));
+        assert_eq!(hamt.insert(0, 0).0.delete(&1), None);
         assert_eq!(
-            h.insert(0, 0).0.insert(1, 0).0.delete(&0),
-            Some(h.insert(1, 0).0)
+            hamt.insert(0, 0).0.insert(1, 0).0.delete(&0),
+            Some(hamt.insert(1, 0).0)
         );
         assert_eq!(
-            h.insert(0, 0).0.insert(1, 0).0.delete(&1),
-            Some(h.insert(0, 0).0)
+            hamt.insert(0, 0).0.insert(1, 0).0.delete(&1),
+            Some(hamt.insert(0, 0).0)
         );
-        assert_eq!(h.insert(0, 0).0.insert(1, 0).0.delete(&2), None);
+        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.delete(&2), None);
     }
 
     #[test]
     fn insert_delete_many() {
-        let mut h: Hamt<i16, i16> = Hamt::new(0);
+        let mut hamt: Hamt<i16, i16> = Hamt::new(0);
 
         for _ in 0..NUM_ITERATIONS {
-            let k = random();
-            let s = h.size();
-            let found = h.find(&k).is_some();
+            let key = random();
+            let size = hamt.size();
+            let found = hamt.find(&key).is_some();
 
             if random() {
-                h = h.insert(k, k).0;
+                hamt = hamt.insert(key, key).0;
 
-                assert_eq!(h.size(), if found { s } else { s + 1 });
-                assert_eq!(h.find(&k), Some(&k));
+                assert_eq!(hamt.size(), if found { size } else { size + 1 });
+                assert_eq!(hamt.find(&key), Some(&key));
             } else {
-                h = h.delete(&k).unwrap_or(h);
+                hamt = hamt.delete(&key).unwrap_or(hamt);
 
-                assert_eq!(h.size(), if found { s - 1 } else { s });
-                assert_eq!(h.find(&k), None);
+                assert_eq!(hamt.size(), if found { size - 1 } else { size });
+                assert_eq!(hamt.find(&key), None);
             }
 
-            assert!(h.is_normal());
+            assert!(hamt.is_normal());
         }
     }
 
     #[test]
     fn find() {
-        let h = Hamt::new(0);
+        let hamt = Hamt::new(0);
 
-        assert_eq!(h.insert(0, 0).0.find(&0), Some(&0));
-        assert_eq!(h.insert(0, 0).0.find(&1), None);
-        assert_eq!(h.insert(1, 0).0.find(&0), None);
-        assert_eq!(h.insert(1, 0).0.find(&1), Some(&0));
-        assert_eq!(h.insert(0, 0).0.insert(1, 0).0.find(&0), Some(&0));
-        assert_eq!(h.insert(0, 0).0.insert(1, 0).0.find(&1), Some(&0));
-        assert_eq!(h.insert(0, 0).0.insert(1, 0).0.find(&2), None);
+        assert_eq!(hamt.insert(0, 0).0.find(&0), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.find(&1), None);
+        assert_eq!(hamt.insert(1, 0).0.find(&0), None);
+        assert_eq!(hamt.insert(1, 0).0.find(&1), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.find(&0), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.find(&1), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.find(&2), None);
     }
 
     #[test]
