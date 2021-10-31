@@ -1,5 +1,3 @@
-#![feature(test)]
-
 //! HAMT implementation whose sub-trees can be shared over threads.
 //!
 //! Hash-Array Mapped Trie (HAMT) is a data structure popular as a map (a.k.a.
