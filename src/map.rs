@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
-use hamt::{Hamt, HamtIterator};
-use node::Node;
+use crate::hamt::{Hamt, HamtIterator};
+use crate::node::Node;
 
 /// Map data structure of HAMT.
 ///

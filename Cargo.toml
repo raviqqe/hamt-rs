@@ -4,6 +4,7 @@ description = "HAMT implementation whose sub-trees can be shared over threads"
 version = "0.2.5"
 authors = ["Yota Toyama <raviqqe@gmail.com>"]
 license = "MIT"
+edition = "2018"
 
 [dependencies]
 rand = "0.7"

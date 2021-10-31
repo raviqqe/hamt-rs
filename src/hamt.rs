@@ -1,5 +1,5 @@
-use bucket::Bucket;
-use node::Node;
+use crate::bucket::Bucket;
+use crate::node::Node;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -282,7 +282,7 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use rand::{random, seq::SliceRandom, thread_rng};
     use std::collections::{HashMap, HashSet};

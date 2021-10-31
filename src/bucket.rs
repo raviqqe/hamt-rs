@@ -1,6 +1,5 @@
+use crate::node::Node;
 use std::{hash::Hash, sync::Arc};
-
-use node::Node;
 
 // TODO: Fix Eq and PartialEq impl.
 // TODO: Unwrap Arc.
