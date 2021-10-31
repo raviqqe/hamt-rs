@@ -64,8 +64,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
     #[cfg(test)]
     fn is_normal(&self) -> bool {
         self.entries.iter().all(|e| match *e {
-            Entry::Bucket(ref b) => !b.is_singleton(),
-            Entry::Hamt(ref h) => h.is_normal() && !h.is_singleton(),
+            Entry::Bucket(b) => !b.is_singleton(),
+            Entry::Hamt(h) => h.is_normal() && !h.is_singleton(),
             _ => true,
         })
     }
@@ -78,9 +78,9 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
     fn insert(&self, k: K, v: V) -> (Self, bool) {
         let i = self.entry_index(&k);
 
-        match self.entries[i] {
+        match &self.entries[i] {
             Entry::Empty => (self.set_entry(i, Entry::KeyValue(k, v)), true),
-            Entry::KeyValue(ref kk, ref vv) => {
+            Entry::KeyValue(kk, vv) => {
                 if *kk == k {
                     return (self.set_entry(i, Entry::KeyValue(k, v)), false);
                 }
@@ -103,36 +103,36 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                     true,
                 )
             }
-            Entry::Hamt(ref h) => {
+            Entry::Hamt(h) => {
                 let (h, new) = h.insert(k, v);
                 (self.set_entry(i, Entry::Hamt(Arc::new(h))), new)
             }
-            Entry::Bucket(ref b) => {
+            Entry::Bucket(b) => {
                 let (b, new) = b.insert(k, v);
                 (self.set_entry(i, Entry::Bucket(b)), new)
             }
         }
     }
 
-    fn delete(&self, k: &K) -> Option<Self> {
-        let i = self.entry_index(k);
+    fn delete(&self, key: &K) -> Option<Self> {
+        let index = self.entry_index(key);
 
         Some(self.set_entry(
-            i,
-            match self.entries[i] {
+            index,
+            match &self.entries[index] {
                 Entry::Empty => return None,
-                Entry::KeyValue(ref kk, _) => {
-                    if *kk == *k {
+                Entry::KeyValue(other_key, _) => {
+                    if key == other_key {
                         Entry::Empty
                     } else {
                         return None;
                     }
                 }
-                Entry::Hamt(ref h) => match h.delete(k) {
+                Entry::Hamt(h) => match h.delete(key) {
                     None => return None,
                     Some(h) => node_to_entry(&h, |h| Entry::Hamt(Arc::new(h))),
                 },
-                Entry::Bucket(ref b) => match b.delete(k) {
+                Entry::Bucket(b) => match b.delete(key) {
                     None => return None,
                     Some(b) => node_to_entry(&b, Entry::Bucket),
                 },
@@ -140,27 +140,27 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
         ))
     }
 
-    fn find(&self, k: &K) -> Option<&V> {
-        match self.entries[self.entry_index(k)] {
+    fn find(&self, key: &K) -> Option<&V> {
+        match &self.entries[self.entry_index(key)] {
             Entry::Empty => None,
-            Entry::KeyValue(ref kk, ref vv) => {
-                if *kk == *k {
-                    Some(vv)
+            Entry::KeyValue(other_key, value) => {
+                if key == other_key {
+                    Some(value)
                 } else {
                     None
                 }
             }
-            Entry::Hamt(ref h) => h.find(k),
-            Entry::Bucket(ref b) => b.find(k),
+            Entry::Hamt(hamt) => hamt.find(key),
+            Entry::Bucket(bucket) => bucket.find(key),
         }
     }
 
     fn first_rest(&self) -> Option<(&K, &V, Self)> {
         for (i, e) in self.entries.iter().enumerate() {
-            match *e {
+            match e {
                 Entry::Empty => {}
-                Entry::KeyValue(ref k, ref v) => return Some((k, v, self.delete(k).unwrap())),
-                Entry::Hamt(ref h) => {
+                Entry::KeyValue(k, v) => return Some((k, v, self.delete(k).unwrap())),
+                Entry::Hamt(h) => {
                     let (k, v, r) = h.first_rest().unwrap();
                     return Some((
                         k,
@@ -168,7 +168,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                         self.set_entry(i, node_to_entry(&r, |h| Entry::Hamt(Arc::new(h)))),
                     ));
                 }
-                Entry::Bucket(ref b) => {
+                Entry::Bucket(b) => {
                     let (k, v, r) = b.first_rest().unwrap();
                     return Some((k, v, self.set_entry(i, node_to_entry(&r, Entry::Bucket))));
                 }
@@ -196,8 +196,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
             .map(|e| match *e {
                 Entry::Empty => 0,
                 Entry::KeyValue(_, _) => 1,
-                Entry::Hamt(ref h) => h.size(),
-                Entry::Bucket(ref b) => b.size(),
+                Entry::Hamt(h) => h.size(),
+                Entry::Bucket(b) => b.size(),
             })
             .sum()
     }
@@ -255,14 +255,14 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
 
                 self.0.push((t.0, i + 1));
 
-                match h.entries[i] {
+                match &h.entries[i] {
                     Entry::Empty => self.next(),
-                    Entry::Hamt(ref h) => {
+                    Entry::Hamt(h) => {
                         self.0.push((NodeRef::Hamt(h), 0));
                         self.next()
                     }
-                    Entry::KeyValue(ref k, ref v) => Some((k, v)),
-                    Entry::Bucket(ref b) => {
+                    Entry::KeyValue(k, v) => Some((k, v)),
+                    Entry::Bucket(b) => {
                         self.0.push((NodeRef::Bucket(b), 0));
                         self.next()
                     }
@@ -275,7 +275,7 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
 
                 self.0.push((t.0, i + 1));
 
-                let (ref k, ref v) = b.to_vec()[i];
+                let (k, v) = &b.to_vec()[i];
                 Some((k, v))
             }
         })
