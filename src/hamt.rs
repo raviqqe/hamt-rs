@@ -246,13 +246,13 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
     type Item = (&'a K, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.pop().and_then(|t| match t {
+        self.0.pop().and_then(|tuple| match tuple {
             (NodeRef::Hamt(hamt), index) => {
                 if index == ENTRY_COUNT {
                     return self.next();
                 }
 
-                self.0.push((t.0, index + 1));
+                self.0.push((tuple.0, index + 1));
 
                 match &hamt.entries[index] {
                     Entry::Empty => self.next(),
@@ -267,15 +267,15 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
                     }
                 }
             }
-            (NodeRef::Bucket(bucket), i) => {
-                if i == bucket.to_vec().len() {
+            (NodeRef::Bucket(bucket), index) => {
+                if index == bucket.to_vec().len() {
                     return self.next();
                 }
 
-                self.0.push((t.0, i + 1));
+                self.0.push((tuple.0, index + 1));
 
-                let (k, v) = &bucket.to_vec()[i];
-                Some((k, v))
+                let (key, value) = &bucket.to_vec()[index];
+                Some((key, value))
             }
         })
     }
