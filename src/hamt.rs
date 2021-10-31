@@ -524,12 +524,12 @@ mod tests {
         }
     }
 
-    fn generate_keys() -> Vec<i16> {
-        (0..1000).collect()
+    fn generate_keys() -> Vec<usize> {
+        (0..10000).collect()
     }
 
     #[bench]
-    fn bench_hamt_insert_1000(bencher: &mut Bencher) {
+    fn bench_hamt_insert(bencher: &mut Bencher) {
         let keys = generate_keys();
 
         bencher.iter(|| {
@@ -542,7 +542,7 @@ mod tests {
     }
 
     #[bench]
-    fn bench_hamt_find_1000(bencher: &mut Bencher) {
+    fn bench_hamt_find(bencher: &mut Bencher) {
         let keys = generate_keys();
         let mut hamt = Hamt::new(0);
 
@@ -558,7 +558,23 @@ mod tests {
     }
 
     #[bench]
-    fn bench_hash_map_insert_1000(bencher: &mut Bencher) {
+    fn bench_hash_map_find(bencher: &mut Bencher) {
+        let keys = generate_keys();
+        let mut map = HashMap::new();
+
+        for key in &keys {
+            map.insert(key, key);
+        }
+
+        bencher.iter(|| {
+            for key in &keys {
+                map.get(&key);
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_hash_map_insert(bencher: &mut Bencher) {
         let keys = generate_keys();
 
         bencher.iter(|| {
@@ -571,17 +587,16 @@ mod tests {
     }
 
     #[bench]
-    fn bench_hash_map_find_1000(bencher: &mut Bencher) {
+    fn bench_hash_map_insert_functional(bencher: &mut Bencher) {
         let keys = generate_keys();
-        let mut map = HashMap::new();
-
-        for key in &keys {
-            map.insert(key, key);
-        }
 
         bencher.iter(|| {
+            let mut map = HashMap::new();
+
             for key in &keys {
-                map.get(&key);
+                map = map.clone();
+
+                map.insert(key, key);
             }
         });
     }

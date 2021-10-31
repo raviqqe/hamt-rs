@@ -241,12 +241,12 @@ mod test {
         spawn(move || map);
     }
 
-    fn generate_keys() -> Vec<i16> {
-        (0..1000).collect()
+    fn generate_keys() -> Vec<usize> {
+        (0..10000).collect()
     }
 
     #[bench]
-    fn bench_insert_1000(bencher: &mut Bencher) {
+    fn bench_insert(bencher: &mut Bencher) {
         let keys = generate_keys();
 
         bencher.iter(|| {
@@ -259,7 +259,7 @@ mod test {
     }
 
     #[bench]
-    fn bench_find_1000(bencher: &mut Bencher) {
+    fn bench_find(bencher: &mut Bencher) {
         let keys = generate_keys();
         let mut map = Map::new();
 
