@@ -397,122 +397,114 @@ mod test {
 
     #[test]
     fn first_rest() {
-        let mut h: Hamt<i16, i16> = Hamt::new(0);
+        let mut hamt: Hamt<i16, i16> = Hamt::new(0);
 
         for _ in 0..NUM_ITERATIONS {
-            let k = random();
-            h = h.insert(k, k).0;
+            let key = random();
+            hamt = hamt.insert(key, key).0;
 
-            assert!(h.is_normal());
+            assert!(hamt.is_normal());
         }
 
-        for _ in 0..h.size() {
-            let new: Hamt<i16, i16>;
+        for _ in 0..hamt.size() {
+            let (key, _, rest) = hamt.first_rest().unwrap();
 
-            {
-                let (k, _, r) = h.first_rest().unwrap();
+            assert_eq!(rest.size(), hamt.size() - 1);
+            assert_eq!(rest.find(key), None);
 
-                assert_eq!(r.size(), h.size() - 1);
-                assert_eq!(r.find(k), None);
+            hamt = rest;
 
-                new = r;
-            }
-
-            h = new;
-
-            assert!(h.is_normal());
+            assert!(hamt.is_normal());
         }
 
-        assert_eq!(h, Hamt::new(0));
+        assert_eq!(hamt, Hamt::new(0));
     }
 
     #[test]
     fn is_singleton() {
-        let h = Hamt::new(0);
+        let hamt = Hamt::new(0);
 
-        assert!(!h.is_singleton());
-        assert!(h.insert(0, 0).0.is_singleton());
-        assert!(!h.insert(0, 0).0.insert(1, 0).0.is_singleton());
+        assert!(!hamt.is_singleton());
+        assert!(hamt.insert(0, 0).0.is_singleton());
+        assert!(!hamt.insert(0, 0).0.insert(1, 0).0.is_singleton());
     }
 
     #[test]
     fn equality() {
         for _ in 0..8 {
-            let mut hs: [Hamt<i16, i16>; 2] = [Hamt::new(0), Hamt::new(0)];
-            let mut is: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
-            let mut ds: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
+            let mut hamts: [Hamt<i16, i16>; 2] = [Hamt::new(0), Hamt::new(0)];
+            let mut inserted_keys: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
+            let mut deleted_keys: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
 
-            for h in hs.iter_mut() {
-                is.shuffle(&mut thread_rng());
-                ds.shuffle(&mut thread_rng());
+            for hamt in hamts.iter_mut() {
+                inserted_keys.shuffle(&mut thread_rng());
+                deleted_keys.shuffle(&mut thread_rng());
 
-                for i in &is {
-                    *h = h.insert(*i, *i).0;
+                for key in &inserted_keys {
+                    *hamt = hamt.insert(*key, *key).0;
                 }
 
-                for d in &ds {
-                    *h = h.delete(d).unwrap_or_else(|| h.clone());
+                for key in &deleted_keys {
+                    *hamt = hamt.delete(key).unwrap_or_else(|| hamt.clone());
                 }
             }
 
-            assert_eq!(hs[0], hs[1]);
+            assert_eq!(hamts[0], hamts[1]);
         }
     }
 
     #[test]
     fn collision() {
-        let mut h = Hamt::new(MAX_LEVEL);
-        let mut s = HashSet::new();
+        let mut hamt = Hamt::new(MAX_LEVEL);
+        let mut set = HashSet::new();
 
-        for k in 0.. {
-            assert!(!h.contain_bucket());
+        for key in 0.. {
+            assert!(!hamt.contain_bucket());
 
-            h = h.insert(k, k).0;
+            hamt = hamt.insert(key, key).0;
 
-            let i = hash(&k) >> 60;
+            let index = hash(&key) >> 60;
 
-            if s.contains(&i) {
+            if set.contains(&index) {
                 break;
             }
 
-            s.insert(i);
+            set.insert(index);
         }
 
-        assert!(h.contain_bucket());
+        assert!(hamt.contain_bucket());
     }
 
     #[test]
-    fn iterator() {
-        let mut ss: Vec<usize> = (0..42).collect();
+    fn iterate() {
+        let sizes: Vec<usize> = (0..42)
+            .chain((0..100).map(|_| random::<usize>() % 1024))
+            .collect();
 
-        for _ in 0..100 {
-            ss.push(random::<usize>() % 1024);
-        }
+        for &level in &[0, MAX_LEVEL] {
+            for size in &sizes {
+                let mut hamt: Hamt<i16, i16> = Hamt::new(level);
+                let mut map: HashMap<i16, i16> = HashMap::new();
 
-        for &l in &[0, MAX_LEVEL] {
-            for s in &ss {
-                let mut h: Hamt<i16, i16> = Hamt::new(l);
-                let mut m: HashMap<i16, i16> = HashMap::new();
+                for _ in 0..*size {
+                    let key = random();
+                    let value = random();
 
-                for _ in 0..*s {
-                    let k = random();
-                    let v = random();
+                    let (other_hamt, _) = hamt.insert(key, value);
+                    hamt = other_hamt;
 
-                    let (hh, _) = h.insert(k, v);
-                    h = hh;
-
-                    m.insert(k, v);
+                    map.insert(key, value);
                 }
 
-                let mut s = 0;
+                let mut size = 0;
 
-                for (k, v) in h.into_iter() {
-                    s += 1;
+                for (key, value) in hamt.into_iter() {
+                    size += 1;
 
-                    assert_eq!(m[k], *v);
+                    assert_eq!(map[key], *value);
                 }
 
-                assert_eq!(s, h.size());
+                assert_eq!(size, hamt.size());
             }
         }
     }
@@ -522,59 +514,59 @@ mod test {
     }
 
     #[bench]
-    fn bench_insert_1000(b: &mut Bencher) {
-        let ks = keys();
+    fn bench_hamt_insert_1000(bencher: &mut Bencher) {
+        let keys = keys();
 
-        b.iter(|| {
-            let mut h = Hamt::new(0);
+        bencher.iter(|| {
+            let mut hamt = Hamt::new(0);
 
-            for k in &ks {
-                h = h.insert(k, k).0;
+            for key in &keys {
+                hamt = hamt.insert(key, key).0;
             }
         });
     }
 
     #[bench]
-    fn bench_find_1000(b: &mut Bencher) {
-        let ks = keys();
-        let mut h = Hamt::new(0);
+    fn bench_hamt_find_1000(bencher: &mut Bencher) {
+        let keys = keys();
+        let mut hamt = Hamt::new(0);
 
-        for k in &ks {
-            h = h.insert(k, k).0;
+        for key in &keys {
+            hamt = hamt.insert(key, key).0;
         }
 
-        b.iter(|| {
-            for k in &ks {
-                h.find(&k);
+        bencher.iter(|| {
+            for key in &keys {
+                hamt.find(&key);
             }
         });
     }
 
     #[bench]
-    fn bench_hash_map_insert_1000(b: &mut Bencher) {
-        let ks = keys();
+    fn bench_hash_map_insert_1000(bencher: &mut Bencher) {
+        let keys = keys();
 
-        b.iter(|| {
-            let mut h = HashMap::new();
+        bencher.iter(|| {
+            let mut map = HashMap::new();
 
-            for k in &ks {
-                h.insert(k, k);
+            for key in &keys {
+                map.insert(key, key);
             }
         });
     }
 
     #[bench]
-    fn bench_hash_map_find_1000(b: &mut Bencher) {
-        let ks = keys();
-        let mut h = HashMap::new();
+    fn bench_hash_map_find_1000(bencher: &mut Bencher) {
+        let keys = keys();
+        let mut map = HashMap::new();
 
-        for k in &ks {
-            h.insert(k, k);
+        for key in &keys {
+            map.insert(key, key);
         }
 
-        b.iter(|| {
-            for k in &ks {
-                h.get(&k);
+        bencher.iter(|| {
+            for key in &keys {
+                map.get(&key);
             }
         });
     }
