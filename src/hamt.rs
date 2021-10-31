@@ -25,7 +25,7 @@ impl<K, V> Default for Entry<K, V> {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Hamt<K, V> {
-    // TODO: Use bitmap.
+    // TODO: Use bitmaps and raw union types for performance.
     level: u8,
     entries: [Entry<K, V>; ENTRY_COUNT],
 }
