@@ -58,10 +58,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
 
     #[cfg(test)]
     fn contain_bucket(&self) -> bool {
-        self.entries.iter().any(|e| match *e {
-            Entry::Bucket(_) => true,
-            _ => false,
-        })
+        self.entries.iter().any(|e| matches!(e, Entry::Bucket(_)))
     }
 
     #[cfg(test)]
@@ -242,7 +239,7 @@ impl<'a, K, V> IntoIterator for &'a Hamt<K, V> {
     type Item = (&'a K, &'a V);
 
     fn into_iter(self) -> Self::IntoIter {
-        HamtIterator(vec![(NodeRef::Hamt(&self), 0)])
+        HamtIterator(vec![(NodeRef::Hamt(self), 0)])
     }
 }
 
@@ -279,7 +276,7 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
                 self.0.push((t.0, i + 1));
 
                 let (ref k, ref v) = b.to_vec()[i];
-                return Some((k, v));
+                Some((k, v))
             }
         })
     }
@@ -296,7 +293,7 @@ mod test {
 
     #[test]
     fn new() {
-        Hamt::new(0) as Hamt<usize, usize>;
+        Hamt::<usize, usize>::new(0);
     }
 
     #[test]
@@ -455,7 +452,7 @@ mod test {
                 }
 
                 for d in &ds {
-                    *h = h.delete(d).unwrap_or(h.clone());
+                    *h = h.delete(d).unwrap_or_else(|| h.clone());
                 }
             }
 
