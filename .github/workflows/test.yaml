@@ -15,4 +15,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: cargo test
+      - run: rustup run nightly cargo test
