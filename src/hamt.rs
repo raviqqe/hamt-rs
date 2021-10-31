@@ -31,27 +31,25 @@ pub struct Hamt<K, V> {
 }
 
 impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
-    pub fn new(l: u8) -> Self {
+    pub fn new(level: u8) -> Self {
         Hamt {
-            level: l,
+            level,
             entries: Default::default(),
         }
     }
 
-    fn entry_index(&self, k: &K) -> usize {
-        ((hash(k) >> (self.level * 5)) & 0b11111) as usize
+    fn entry_index(&self, key: &K) -> usize {
+        ((hash(key) >> (self.level * 5)) & 0b11111) as usize
     }
 
-    fn set_entry(&self, i: usize, e: Entry<K, V>) -> Self {
-        let mut es = self.entries.clone();
-        es[i] = e;
-        self.from_entries(es)
-    }
+    fn set_entry(&self, index: usize, entry: Entry<K, V>) -> Self {
+        let mut entries = self.entries.clone();
 
-    fn from_entries(&self, es: [Entry<K, V>; NUM_ENTRIES]) -> Self {
+        entries[index] = entry;
+
         Hamt {
             level: self.level,
-            entries: es,
+            entries,
         }
     }
 
@@ -62,9 +60,9 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
 
     #[cfg(test)]
     fn is_normal(&self) -> bool {
-        self.entries.iter().all(|e| match *e {
-            Entry::Bucket(b) => !b.is_singleton(),
-            Entry::Hamt(h) => h.is_normal() && !h.is_singleton(),
+        self.entries.iter().all(|entry| match entry {
+            Entry::Bucket(bucket) => !bucket.is_singleton(),
+            Entry::Hamt(hamt) => hamt.is_normal() && !hamt.is_singleton(),
             _ => true,
         })
     }
@@ -192,7 +190,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
     fn size(&self) -> usize {
         self.entries
             .iter()
-            .map(|e| match *e {
+            .map(|e| match e {
                 Entry::Empty => 0,
                 Entry::KeyValue(_, _) => 1,
                 Entry::Hamt(h) => h.size(),
