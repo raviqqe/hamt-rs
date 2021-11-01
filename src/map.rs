@@ -126,7 +126,6 @@ mod test {
     use super::Map;
     use rand::{random, seq::SliceRandom, thread_rng};
     use std::thread::spawn;
-    use test::Bencher;
 
     const NUM_ITERATIONS: usize = 1 << 12;
 
@@ -270,38 +269,5 @@ mod test {
 
         let map: Map<String, String> = Map::new();
         spawn(move || map);
-    }
-
-    fn generate_keys() -> Vec<usize> {
-        (0..10000).collect()
-    }
-
-    #[bench]
-    fn bench_insert(bencher: &mut Bencher) {
-        let keys = generate_keys();
-
-        bencher.iter(|| {
-            let mut map = Map::new();
-
-            for key in &keys {
-                map = map.insert(key, key);
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_get(bencher: &mut Bencher) {
-        let keys = generate_keys();
-        let mut map = Map::new();
-
-        for key in &keys {
-            map = map.insert(key, key);
-        }
-
-        bencher.iter(|| {
-            for key in &keys {
-                map.get(&key);
-            }
-        });
     }
 }

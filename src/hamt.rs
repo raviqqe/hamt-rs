@@ -286,7 +286,6 @@ mod tests {
     use super::*;
     use rand::{random, seq::SliceRandom, thread_rng};
     use std::collections::{HashMap, HashSet};
-    use test::Bencher;
 
     const NUM_ITERATIONS: usize = 1 << 12;
 
@@ -507,82 +506,5 @@ mod tests {
                 assert_eq!(size, hamt.entry_count());
             }
         }
-    }
-
-    fn generate_keys() -> Vec<usize> {
-        (0..10000).collect()
-    }
-
-    #[bench]
-    fn bench_hamt_insert(bencher: &mut Bencher) {
-        let keys = generate_keys();
-
-        bencher.iter(|| {
-            let mut hamt = Hamt::new(0);
-
-            for key in &keys {
-                hamt = hamt.insert(key, key).0;
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_hamt_get(bencher: &mut Bencher) {
-        let keys = generate_keys();
-        let mut hamt = Hamt::new(0);
-
-        for key in &keys {
-            hamt = hamt.insert(key, key).0;
-        }
-
-        bencher.iter(|| {
-            for key in &keys {
-                hamt.get(&key);
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_hash_map_get(bencher: &mut Bencher) {
-        let keys = generate_keys();
-        let mut map = HashMap::new();
-
-        for key in &keys {
-            map.insert(key, key);
-        }
-
-        bencher.iter(|| {
-            for key in &keys {
-                map.get(&key);
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_hash_map_insert(bencher: &mut Bencher) {
-        let keys = generate_keys();
-
-        bencher.iter(|| {
-            let mut map = HashMap::new();
-
-            for key in &keys {
-                map.insert(key, key);
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_hash_map_insert_functional(bencher: &mut Bencher) {
-        let keys = generate_keys();
-
-        bencher.iter(|| {
-            let mut map = HashMap::new();
-
-            for key in &keys {
-                map = map.clone();
-
-                map.insert(key, key);
-            }
-        });
     }
 }
