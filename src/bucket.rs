@@ -1,7 +1,7 @@
 use crate::node::Node;
 use std::{hash::Hash, sync::Arc};
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug)]
 pub struct Bucket<K, V> {
     entries: Arc<[(K, V)]>,
 }

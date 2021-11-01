@@ -1,5 +1,4 @@
-use crate::bucket::Bucket;
-use crate::node::Node;
+use crate::{bucket::Bucket, node::Node};
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -9,7 +8,7 @@ use std::{
 const MAX_LEVEL: u8 = 64 / 5;
 const ENTRY_COUNT: usize = 32;
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum Entry<K, V> {
     Empty,
     KeyValue(K, V),
@@ -45,7 +44,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> From<Bucket<K, V>> for Entry<K, V> {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Hamt<K, V> {
     // TODO: Use bitmaps and raw union types for performance.
     level: u8,

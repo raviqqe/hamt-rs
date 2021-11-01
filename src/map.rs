@@ -1,13 +1,14 @@
-use crate::hamt::{Hamt, HamtIterator};
-use crate::node::Node;
-use std::hash::Hash;
-use std::ops::Index;
+use crate::{
+    hamt::{Hamt, HamtIterator},
+    node::Node,
+};
+use std::{hash::Hash, ops::Index};
 
 /// Map data structure of HAMT.
 ///
 /// Note that every method does not modify the original map but creates a new
 /// one if necessary.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Map<K, V> {
     size: usize,
     hamt: Hamt<K, V>,
@@ -25,6 +26,11 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     /// Finds a key and its corresponding value in a map.
     pub fn get(&self, key: &K) -> Option<&V> {
         self.hamt.get(key)
+    }
+
+    /// Checks if a key is contained in a map.
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.hamt.get(key).is_some()
     }
 
     /// Inserts a key-value pair into a map.
@@ -45,6 +51,26 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
         })
     }
 
+    /// Returns a size of a map.
+    pub fn len(&self) -> usize {
+        self.size
+    }
+
+    /// Returns true if a map is empty.
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
+    }
+
+    /// Returns keys in a map
+    pub fn keys(&self) -> impl Iterator<Item = &K> {
+        self.into_iter().map(|(key, _)| key)
+    }
+
+    /// Returns keys in a map
+    pub fn values(&self) -> impl Iterator<Item = &V> {
+        self.into_iter().map(|(_, value)| value)
+    }
+
     /// Removes the first element in a map and returns a new map containing the
     /// rest of elements.
     pub fn first_rest(&self) -> Option<(&K, &V, Self)> {
@@ -58,11 +84,6 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
                 },
             )
         })
-    }
-
-    /// Returns a size of a map.
-    pub fn len(&self) -> usize {
-        self.size
     }
 }
 
