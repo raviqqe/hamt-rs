@@ -46,6 +46,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
         match self.find_index(&key) {
             Some(index) => {
                 entries[index] = (key, value);
+
                 (
                     Bucket {
                         entries: entries.into(),
@@ -55,6 +56,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
             }
             None => {
                 entries.push((key, value));
+
                 (
                     Bucket {
                         entries: entries.into(),
