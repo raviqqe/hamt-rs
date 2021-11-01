@@ -23,6 +23,28 @@ impl<K, V> Default for Entry<K, V> {
     }
 }
 
+impl<K: Clone + Hash + PartialEq, V: Clone> From<Hamt<K, V>> for Entry<K, V> {
+    fn from(hamt: Hamt<K, V>) -> Self {
+        if hamt.is_singleton() {
+            let (key, value) = hamt.into_iter().next().unwrap();
+            Entry::KeyValue(key.clone(), value.clone())
+        } else {
+            Entry::Hamt(hamt.into())
+        }
+    }
+}
+
+impl<K: Clone + Hash + PartialEq, V: Clone> From<Bucket<K, V>> for Entry<K, V> {
+    fn from(bucket: Bucket<K, V>) -> Self {
+        if bucket.is_singleton() {
+            let (key, value) = bucket.as_slice().iter().next().unwrap();
+            Entry::KeyValue(key.clone(), value.clone())
+        } else {
+            Entry::Bucket(bucket)
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Hamt<K, V> {
     // TODO: Use bitmaps and raw union types for performance.
@@ -88,19 +110,18 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                     self.set_entry(
                         index,
                         if self.level < MAX_LEVEL {
-                            Entry::Hamt(Arc::new(
-                                Hamt::new(self.level + 1)
-                                    .insert(other_key.clone(), other_value.clone())
-                                    .0
-                                    .insert(key, value)
-                                    .0,
-                            ))
+                            Hamt::new(self.level + 1)
+                                .insert(other_key.clone(), other_value.clone())
+                                .0
+                                .insert(key, value)
+                                .0
+                                .into()
                         } else {
-                            Entry::Bucket(
-                                Bucket::new(other_key.clone(), other_value.clone())
-                                    .insert(key, value)
-                                    .0,
-                            )
+                            Bucket::new(vec![
+                                (key, value),
+                                (other_key.clone(), other_value.clone()),
+                            ])
+                            .into()
                         },
                     ),
                     true,
@@ -108,42 +129,34 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
             }
             Entry::Hamt(hamt) => {
                 let (hamt, ok) = hamt.insert(key, value);
-                (self.set_entry(index, Entry::Hamt(Arc::new(hamt))), ok)
+                (self.set_entry(index, hamt.into()), ok)
             }
             Entry::Bucket(bucket) => {
                 let (bucket, ok) = bucket.insert(key, value);
-                (self.set_entry(index, Entry::Bucket(bucket)), ok)
+                (self.set_entry(index, bucket.into()), ok)
             }
         }
     }
 
     fn delete(&self, key: &K) -> Option<Self> {
         let index = self.entry_index(key);
-
-        Some(self.set_entry(
-            index,
-            match &self.entries[index] {
-                Entry::Empty => return None,
-                Entry::KeyValue(other_key, _) => {
-                    if key == other_key {
-                        Entry::Empty
-                    } else {
-                        return None;
-                    }
+        let entry = match &self.entries[index] {
+            Entry::Empty => None,
+            Entry::KeyValue(other_key, _) => {
+                if key == other_key {
+                    Some(Entry::Empty)
+                } else {
+                    None
                 }
-                Entry::Hamt(hamt) => match hamt.delete(key) {
-                    None => return None,
-                    Some(h) => convert_node_to_entry(&h, |h| Entry::Hamt(Arc::new(h))),
-                },
-                Entry::Bucket(bucket) => match bucket.delete(key) {
-                    None => return None,
-                    Some(bucket) => convert_node_to_entry(&bucket, Entry::Bucket),
-                },
-            },
-        ))
+            }
+            Entry::Hamt(hamt) => hamt.delete(key).map(Entry::from),
+            Entry::Bucket(bucket) => bucket.delete(key).map(Entry::from),
+        }?;
+
+        Some(self.set_entry(index, entry))
     }
 
-    fn find(&self, key: &K) -> Option<&V> {
+    fn get(&self, key: &K) -> Option<&V> {
         match &self.entries[self.entry_index(key)] {
             Entry::Empty => None,
             Entry::KeyValue(other_key, value) => {
@@ -153,8 +166,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                     None
                 }
             }
-            Entry::Hamt(hamt) => hamt.find(key),
-            Entry::Bucket(bucket) => bucket.find(key),
+            Entry::Hamt(hamt) => hamt.get(key),
+            Entry::Bucket(bucket) => bucket.get(key),
         }
     }
 
@@ -168,23 +181,12 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                 Entry::Hamt(hamt) => {
                     let (key, value, rest) = hamt.first_rest().unwrap();
 
-                    return Some((
-                        key,
-                        value,
-                        self.set_entry(
-                            index,
-                            convert_node_to_entry(&rest, |h| Entry::Hamt(Arc::new(h))),
-                        ),
-                    ));
+                    return Some((key, value, self.set_entry(index, rest.into())));
                 }
                 Entry::Bucket(bucket) => {
                     let (key, value, rest) = bucket.first_rest().unwrap();
 
-                    return Some((
-                        key,
-                        value,
-                        self.set_entry(index, convert_node_to_entry(&rest, Entry::Bucket)),
-                    ));
+                    return Some((key, value, self.set_entry(index, rest.into())));
                 }
             }
         }
@@ -204,32 +206,16 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
             == 1
     }
 
-    fn size(&self) -> usize {
+    fn entry_count(&self) -> usize {
         self.entries
             .iter()
             .map(|entry| match entry {
                 Entry::Empty => 0,
                 Entry::KeyValue(_, _) => 1,
-                Entry::Hamt(hamt) => hamt.size(),
-                Entry::Bucket(bucket) => bucket.size(),
+                Entry::Hamt(hamt) => hamt.entry_count(),
+                Entry::Bucket(bucket) => bucket.entry_count(),
             })
             .sum()
-    }
-}
-
-fn convert_node_to_entry<N: Clone + Node>(
-    node: &N,
-    to_entry: fn(N) -> Entry<N::Key, N::Value>,
-) -> Entry<N::Key, N::Value>
-where
-    N::Key: Clone,
-    N::Value: Clone,
-{
-    if node.is_singleton() {
-        let (key, value, _) = node.first_rest().unwrap();
-        Entry::KeyValue(key.clone(), value.clone())
-    } else {
-        to_entry(node.clone())
     }
 }
 
@@ -283,13 +269,13 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
                 }
             }
             NodeRef::Bucket(bucket) => {
-                if index == bucket.to_vec().len() {
+                if index == bucket.len() {
                     return self.next();
                 }
 
                 self.0.push((node, index + 1));
 
-                let (key, value) = &bucket.to_vec()[index];
+                let (key, value) = &bucket.as_slice()[index];
                 Some((key, value))
             }
         })
@@ -314,22 +300,22 @@ mod tests {
     fn insert() {
         let hamt = Hamt::new(0);
 
-        assert_eq!(hamt.size(), 0);
+        assert_eq!(hamt.entry_count(), 0);
 
         let (other, ok) = hamt.insert(0, 0);
 
         assert!(ok);
-        assert_eq!(other.size(), 1);
+        assert_eq!(other.entry_count(), 1);
 
         let (other, ok) = other.insert(0, 0);
 
         assert!(!ok);
-        assert_eq!(other.size(), 1);
+        assert_eq!(other.entry_count(), 1);
 
         let (hamt, ok) = other.insert(1, 0);
 
         assert!(ok);
-        assert_eq!(hamt.size(), 2);
+        assert_eq!(hamt.entry_count(), 2);
     }
 
     #[test]
@@ -340,7 +326,7 @@ mod tests {
             let (other, ok) = hamt.insert(index, index);
             hamt = other;
             assert!(ok);
-            assert_eq!(hamt.size(), index + 1);
+            assert_eq!(hamt.entry_count(), index + 1);
         }
     }
 
@@ -351,7 +337,7 @@ mod tests {
         for index in 0..NUM_ITERATIONS {
             let key = random();
             hamt = hamt.insert(key, key).0;
-            assert_eq!(hamt.size(), index + 1);
+            assert_eq!(hamt.entry_count(), index + 1);
         }
     }
 
@@ -378,19 +364,19 @@ mod tests {
 
         for _ in 0..NUM_ITERATIONS {
             let key = random();
-            let size = hamt.size();
-            let found = hamt.find(&key).is_some();
+            let size = hamt.entry_count();
+            let found = hamt.get(&key).is_some();
 
             if random() {
                 hamt = hamt.insert(key, key).0;
 
-                assert_eq!(hamt.size(), if found { size } else { size + 1 });
-                assert_eq!(hamt.find(&key), Some(&key));
+                assert_eq!(hamt.entry_count(), if found { size } else { size + 1 });
+                assert_eq!(hamt.get(&key), Some(&key));
             } else {
                 hamt = hamt.delete(&key).unwrap_or(hamt);
 
-                assert_eq!(hamt.size(), if found { size - 1 } else { size });
-                assert_eq!(hamt.find(&key), None);
+                assert_eq!(hamt.entry_count(), if found { size - 1 } else { size });
+                assert_eq!(hamt.get(&key), None);
             }
 
             assert!(hamt.is_normal());
@@ -401,13 +387,13 @@ mod tests {
     fn find() {
         let hamt = Hamt::new(0);
 
-        assert_eq!(hamt.insert(0, 0).0.find(&0), Some(&0));
-        assert_eq!(hamt.insert(0, 0).0.find(&1), None);
-        assert_eq!(hamt.insert(1, 0).0.find(&0), None);
-        assert_eq!(hamt.insert(1, 0).0.find(&1), Some(&0));
-        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.find(&0), Some(&0));
-        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.find(&1), Some(&0));
-        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.find(&2), None);
+        assert_eq!(hamt.insert(0, 0).0.get(&0), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.get(&1), None);
+        assert_eq!(hamt.insert(1, 0).0.get(&0), None);
+        assert_eq!(hamt.insert(1, 0).0.get(&1), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.get(&0), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.get(&1), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.get(&2), None);
     }
 
     #[test]
@@ -421,11 +407,11 @@ mod tests {
             assert!(hamt.is_normal());
         }
 
-        for _ in 0..hamt.size() {
+        for _ in 0..hamt.entry_count() {
             let (key, _, rest) = hamt.first_rest().unwrap();
 
-            assert_eq!(rest.size(), hamt.size() - 1);
-            assert_eq!(rest.find(key), None);
+            assert_eq!(rest.entry_count(), hamt.entry_count() - 1);
+            assert_eq!(rest.get(key), None);
 
             hamt = rest;
 
@@ -519,7 +505,7 @@ mod tests {
                     assert_eq!(map[key], *value);
                 }
 
-                assert_eq!(size, hamt.size());
+                assert_eq!(size, hamt.entry_count());
             }
         }
     }
@@ -552,7 +538,7 @@ mod tests {
 
         bencher.iter(|| {
             for key in &keys {
-                hamt.find(&key);
+                hamt.get(&key);
             }
         });
     }
