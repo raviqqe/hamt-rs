@@ -1,8 +1,7 @@
-# hamt-sync
+# hamt-rs
 
-[![GitHub Action](https://img.shields.io/github/workflow/status/raviqqe/hamt-sync/test?style=flat-square)](https://github.com/raviqqe/hamt-sync/actions?query=workflow%3Atest)
-[![Crates.io](https://img.shields.io/crates/v/hamt-sync.svg?style=flat-square)](https://crates.io/crates/hamt-sync)
-[![License](https://img.shields.io/github/license/raviqqe/hamt-sync.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![GitHub Action](https://img.shields.io/github/workflow/status/raviqqe/hamt-rs/test?style=flat-square)](https://github.com/raviqqe/hamt-rs/actions?query=workflow%3Atest)
+[![License](https://img.shields.io/github/license/raviqqe/hamt-rs.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
 HAMT implementation whose sub-trees can be shared over threads.
 
