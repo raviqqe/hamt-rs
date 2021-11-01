@@ -96,11 +96,10 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                                     .0,
                             ))
                         } else {
-                            Entry::Bucket(
-                                Bucket::new(other_key.clone(), other_value.clone())
-                                    .insert(key, value)
-                                    .0,
-                            )
+                            Entry::Bucket(Bucket::new(vec![
+                                (key, value),
+                                (other_key.clone(), other_value.clone()),
+                            ]))
                         },
                     ),
                     true,
@@ -283,13 +282,13 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
                 }
             }
             NodeRef::Bucket(bucket) => {
-                if index == bucket.to_vec().len() {
+                if index == bucket.len() {
                     return self.next();
                 }
 
                 self.0.push((node, index + 1));
 
-                let (key, value) = &bucket.to_vec()[index];
+                let (key, value) = &bucket.as_slice()[index];
                 Some((key, value))
             }
         })

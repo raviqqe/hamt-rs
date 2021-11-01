@@ -1,22 +1,25 @@
 use crate::node::Node;
 use std::{hash::Hash, sync::Arc};
 
-// TODO: Unwrap Arc.
 #[derive(Clone, Debug, Hash)]
 pub struct Bucket<K, V> {
-    entries: Arc<Vec<(K, V)>>,
+    entries: Arc<[(K, V)]>,
 }
 
 impl<K, V> Bucket<K, V> {
-    pub fn new(key: K, value: V) -> Self {
+    pub fn new(entries: Vec<(K, V)>) -> Self {
         Bucket {
-            entries: Arc::new(vec![(key, value)]),
+            entries: entries.into(),
         }
     }
 }
 
 impl<K, V> Bucket<K, V> {
-    pub fn to_vec(&self) -> &Vec<(K, V)> {
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn as_slice(&self) -> &[(K, V)] {
         &self.entries
     }
 }
@@ -38,23 +41,23 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
     type Value = V;
 
     fn insert(&self, key: K, value: V) -> (Self, bool) {
-        let mut key_values = (*self.entries).clone();
+        let mut entries = self.entries.to_vec();
 
         match self.find_index(&key) {
             Some(index) => {
-                key_values[index] = (key, value);
+                entries[index] = (key, value);
                 (
                     Bucket {
-                        entries: Arc::new(key_values),
+                        entries: entries.into(),
                     },
                     false,
                 )
             }
             None => {
-                key_values.push((key, value));
+                entries.push((key, value));
                 (
                     Bucket {
-                        entries: Arc::new(key_values),
+                        entries: entries.into(),
                     },
                     true,
                 )
@@ -64,10 +67,12 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
 
     fn delete(&self, key: &K) -> Option<Self> {
         self.find_index(key).map(|index| {
-            let mut value = (*self.entries).clone();
-            value.remove(index);
+            let mut entries = self.entries.to_vec();
+
+            entries.remove(index);
+
             Bucket {
-                entries: Arc::new(value),
+                entries: entries.into(),
             }
         })
     }
@@ -81,15 +86,15 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
             return None;
         }
 
-        let mut key_values = (*self.entries).clone();
+        let mut entries = self.entries.to_vec();
 
-        key_values.remove(0);
+        entries.remove(0);
 
         Some((
             &self.entries[0].0,
             &self.entries[0].1,
             Bucket {
-                entries: Arc::new(key_values),
+                entries: entries.into(),
             },
         ))
     }
@@ -105,7 +110,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
 
 impl<K: PartialEq, V: PartialEq> PartialEq for Bucket<K, V> {
     fn eq(&self, other: &Self) -> bool {
-        for entry in self.entries.as_slice() {
+        for entry in self.entries.as_ref() {
             if !other.entries.contains(entry) {
                 return false;
             }
@@ -123,12 +128,12 @@ mod test {
 
     #[test]
     fn new() {
-        Bucket::new(42, 0);
+        Bucket::new(vec![(42, 0)]);
     }
 
     #[test]
     fn insert() {
-        let bucket = Bucket::new(42, 0);
+        let bucket = Bucket::new(vec![(42, 0)]);
 
         assert_eq!(bucket.size(), 1);
 
@@ -141,18 +146,18 @@ mod test {
 
     #[test]
     fn delete() {
-        let bucket = Bucket::new(42, 0);
+        let bucket = Bucket::new(vec![(42, 0)]);
 
         assert_eq!(bucket.delete(&42).unwrap().size(), 0);
         assert_eq!(
             bucket.insert(0, 0).0.delete(&42).unwrap(),
-            Bucket::new(0, 0)
+            Bucket::new(vec![(0, 0)])
         );
     }
 
     #[test]
     fn find() {
-        let bucket = Bucket::new(42, 0);
+        let bucket = Bucket::new(vec![(42, 0)]);
 
         assert_eq!(bucket.find(&42), Some(&0));
         assert_eq!(bucket.find(&0), None);
@@ -160,9 +165,12 @@ mod test {
 
     #[test]
     fn first_rest() {
-        let bucket = Bucket::new(42, 0).insert(0, 0).0;
+        let bucket = Bucket::new(vec![(42, 0)]).insert(0, 0).0;
 
-        assert_eq!(bucket.first_rest(), Some((&42, &0, Bucket::new(0, 0))));
+        assert_eq!(
+            bucket.first_rest(),
+            Some((&42, &0, Bucket::new(vec![(0, 0)])))
+        );
         assert_eq!(
             bucket.delete(&0).unwrap().first_rest(),
             Some((&42, &0, bucket.delete(&0).unwrap().delete(&42).unwrap()))
@@ -171,7 +179,7 @@ mod test {
 
     #[test]
     fn is_singleton() {
-        let bucket = Bucket::new(42, 0);
+        let bucket = Bucket::new(vec![(42, 0)]);
 
         assert!(!bucket.delete(&42).unwrap().is_singleton());
         assert!(bucket.is_singleton());
@@ -180,8 +188,8 @@ mod test {
 
     #[test]
     fn equal() {
-        let one = Bucket::new(1, 0);
-        let other = Bucket::new(2, 0);
+        let one = Bucket::new(vec![(1, 0)]);
+        let other = Bucket::new(vec![(2, 0)]);
 
         assert_eq!(one.insert(2, 0), other.insert(1, 0));
     }
