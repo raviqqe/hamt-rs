@@ -23,6 +23,28 @@ impl<K, V> Default for Entry<K, V> {
     }
 }
 
+impl<K: Clone + Hash + PartialEq, V: Clone> From<Hamt<K, V>> for Entry<K, V> {
+    fn from(hamt: Hamt<K, V>) -> Self {
+        if hamt.is_singleton() {
+            let (key, value) = hamt.into_iter().next().unwrap();
+            Entry::KeyValue(key.clone(), value.clone())
+        } else {
+            Entry::Hamt(hamt.into())
+        }
+    }
+}
+
+impl<K: Clone + Hash + PartialEq, V: Clone> From<Bucket<K, V>> for Entry<K, V> {
+    fn from(bucket: Bucket<K, V>) -> Self {
+        if bucket.is_singleton() {
+            let (key, value) = bucket.as_slice().iter().next().unwrap();
+            Entry::KeyValue(key.clone(), value.clone())
+        } else {
+            Entry::Bucket(bucket)
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Hamt<K, V> {
     // TODO: Use bitmaps and raw union types for performance.
@@ -118,28 +140,20 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
 
     fn delete(&self, key: &K) -> Option<Self> {
         let index = self.entry_index(key);
-
-        Some(self.set_entry(
-            index,
-            match &self.entries[index] {
-                Entry::Empty => return None,
-                Entry::KeyValue(other_key, _) => {
-                    if key == other_key {
-                        Entry::Empty
-                    } else {
-                        return None;
-                    }
+        let entry = match &self.entries[index] {
+            Entry::Empty => None,
+            Entry::KeyValue(other_key, _) => {
+                if key == other_key {
+                    Some(Entry::Empty)
+                } else {
+                    None
                 }
-                Entry::Hamt(hamt) => match hamt.delete(key) {
-                    None => return None,
-                    Some(hamt) => convert_node_to_entry(&hamt, |h| Entry::Hamt(Arc::new(h))),
-                },
-                Entry::Bucket(bucket) => match bucket.delete(key) {
-                    None => return None,
-                    Some(bucket) => convert_node_to_entry(&bucket, Entry::Bucket),
-                },
-            },
-        ))
+            }
+            Entry::Hamt(hamt) => hamt.delete(key).map(Entry::from),
+            Entry::Bucket(bucket) => bucket.delete(key).map(Entry::from),
+        }?;
+
+        Some(self.set_entry(index, entry))
     }
 
     fn get(&self, key: &K) -> Option<&V> {
@@ -167,23 +181,12 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                 Entry::Hamt(hamt) => {
                     let (key, value, rest) = hamt.first_rest().unwrap();
 
-                    return Some((
-                        key,
-                        value,
-                        self.set_entry(
-                            index,
-                            convert_node_to_entry(&rest, |h| Entry::Hamt(Arc::new(h))),
-                        ),
-                    ));
+                    return Some((key, value, self.set_entry(index, rest.into())));
                 }
                 Entry::Bucket(bucket) => {
                     let (key, value, rest) = bucket.first_rest().unwrap();
 
-                    return Some((
-                        key,
-                        value,
-                        self.set_entry(index, convert_node_to_entry(&rest, Entry::Bucket)),
-                    ));
+                    return Some((key, value, self.set_entry(index, rest.into())));
                 }
             }
         }
@@ -213,22 +216,6 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                 Entry::Bucket(bucket) => bucket.entry_count(),
             })
             .sum()
-    }
-}
-
-fn convert_node_to_entry<N: Clone + Node>(
-    node: &N,
-    to_entry: fn(N) -> Entry<N::Key, N::Value>,
-) -> Entry<N::Key, N::Value>
-where
-    N::Key: Clone,
-    N::Value: Clone,
-{
-    if node.is_singleton() {
-        let (key, value, _) = node.first_rest().unwrap();
-        Entry::KeyValue(key.clone(), value.clone())
-    } else {
-        to_entry(node.clone())
     }
 }
 
