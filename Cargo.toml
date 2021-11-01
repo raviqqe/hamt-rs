@@ -9,3 +9,7 @@ edition = "2018"
 [dev-dependencies]
 criterion = "0.3"
 rand = "0.8"
+
+[[bench]]
+name = "main"
+harness = false
