@@ -14,7 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: cargo clippy -- -D warnings
+      - run: rustup install nightly
+      - run: rustup run nightly cargo clippy -- -D warnings
   spell_check:
     runs-on: ubuntu-latest
     steps:
