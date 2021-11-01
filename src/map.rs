@@ -8,7 +8,7 @@ use std::{hash::Hash, ops::Index};
 ///
 /// Note that every method does not modify the original map but creates a new
 /// one if necessary.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Map<K, V> {
     size: usize,
     hamt: Hamt<K, V>,
