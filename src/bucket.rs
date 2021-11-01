@@ -40,7 +40,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
     type Key = K;
     type Value = V;
 
-    fn insert(&self, key: K, value: V) -> (Self, bool) {
+    fn insert(&self, key: K, value: V, _: u64) -> (Self, bool) {
         let mut entries = self.entries.to_vec();
 
         match self.find_index(&key) {

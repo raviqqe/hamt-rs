@@ -59,8 +59,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
         }
     }
 
-    fn entry_index(&self, key: &K) -> usize {
-        ((hash(key) >> (self.level * 5)) & 0b11111) as usize
+    fn entry_index(&self, key: &K, hash: u64) -> usize {
+        ((hash >> (self.level * 5)) & 0b11111) as usize
     }
 
     fn set_entry(&self, index: usize, entry: Entry<K, V>) -> Self {
@@ -95,8 +95,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
     type Key = K;
     type Value = V;
 
-    fn insert(&self, key: K, value: V) -> (Self, bool) {
-        let index = self.entry_index(&key);
+    fn insert(&self, key: K, value: V, hash: u64) -> (Self, bool) {
+        let index = self.entry_index(&key, hash);
 
         match &self.entries[index] {
             Entry::Empty => (self.set_entry(index, Entry::KeyValue(key, value)), true),
@@ -110,9 +110,9 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                         index,
                         if self.level < MAX_LEVEL {
                             Hamt::new(self.level + 1)
-                                .insert(other_key.clone(), other_value.clone())
+                                .insert(other_key.clone(), other_value.clone(), hash)
                                 .0
-                                .insert(key, value)
+                                .insert(key, value, hash)
                                 .0
                                 .into()
                         } else {
@@ -127,18 +127,18 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                 )
             }
             Entry::Hamt(hamt) => {
-                let (hamt, ok) = hamt.insert(key, value);
+                let (hamt, ok) = hamt.insert(key, value, hash);
                 (self.set_entry(index, hamt.into()), ok)
             }
             Entry::Bucket(bucket) => {
-                let (bucket, ok) = bucket.insert(key, value);
+                let (bucket, ok) = bucket.insert(key, value, hash);
                 (self.set_entry(index, bucket.into()), ok)
             }
         }
     }
 
-    fn remove(&self, key: &K) -> Option<Self> {
-        let index = self.entry_index(key);
+    fn remove(&self, key: &K, hash: u64) -> Option<Self> {
+        let index = self.entry_index(key, hash);
         let entry = match &self.entries[index] {
             Entry::Empty => None,
             Entry::KeyValue(other_key, _) => {
@@ -155,7 +155,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
         Some(self.set_entry(index, entry))
     }
 
-    fn get(&self, key: &K) -> Option<&V> {
+    fn get(&self, key: HashedKey) -> Option<&V> {
         match &self.entries[self.entry_index(key)] {
             Entry::Empty => None,
             Entry::KeyValue(other_key, value) => {

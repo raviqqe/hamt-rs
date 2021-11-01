@@ -7,6 +7,7 @@
 
 mod bucket;
 mod hamt;
+mod hashed_key;
 mod map;
 mod node;
 
