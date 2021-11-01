@@ -384,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn find() {
+    fn get() {
         let hamt = Hamt::new(0);
 
         assert_eq!(hamt.insert(0, 0).0.get(&0), Some(&0));
@@ -528,7 +528,7 @@ mod tests {
     }
 
     #[bench]
-    fn bench_hamt_find(bencher: &mut Bencher) {
+    fn bench_hamt_get(bencher: &mut Bencher) {
         let keys = generate_keys();
         let mut hamt = Hamt::new(0);
 
@@ -544,7 +544,7 @@ mod tests {
     }
 
     #[bench]
-    fn bench_hash_map_find(bencher: &mut Bencher) {
+    fn bench_hash_map_get(bencher: &mut Bencher) {
         let keys = generate_keys();
         let mut map = HashMap::new();
 

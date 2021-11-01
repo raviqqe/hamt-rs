@@ -158,7 +158,7 @@ mod test {
     }
 
     #[test]
-    fn find() {
+    fn get() {
         let bucket = Bucket::new(vec![(42, 0)]);
 
         assert_eq!(bucket.get(&42), Some(&0));

@@ -40,7 +40,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 
     /// Finds a key and its corresponding value in a map.
-    pub fn find(&self, key: &K) -> Option<&V> {
+    pub fn get(&self, key: &K) -> Option<&V> {
         self.hamt.get(key)
     }
 
@@ -159,33 +159,33 @@ mod test {
         for _ in 0..NUM_ITERATIONS {
             let key = random();
             let size = map.len();
-            let found = map.find(&key).is_some();
+            let found = map.get(&key).is_some();
 
             if random() {
                 map = map.insert(key, key);
 
                 assert_eq!(map.len(), if found { size } else { size + 1 });
-                assert_eq!(map.find(&key), Some(&key));
+                assert_eq!(map.get(&key), Some(&key));
             } else {
                 map = map.remove(&key).unwrap_or(map);
 
                 assert_eq!(map.len(), if found { size - 1 } else { size });
-                assert_eq!(map.find(&key), None);
+                assert_eq!(map.get(&key), None);
             }
         }
     }
 
     #[test]
-    fn find() {
+    fn get() {
         let map = Map::new();
 
-        assert_eq!(map.insert(0, 0).find(&0), Some(&0));
-        assert_eq!(map.insert(0, 0).find(&1), None);
-        assert_eq!(map.insert(1, 0).find(&0), None);
-        assert_eq!(map.insert(1, 0).find(&1), Some(&0));
-        assert_eq!(map.insert(0, 0).insert(1, 0).find(&0), Some(&0));
-        assert_eq!(map.insert(0, 0).insert(1, 0).find(&1), Some(&0));
-        assert_eq!(map.insert(0, 0).insert(1, 0).find(&2), None);
+        assert_eq!(map.insert(0, 0).get(&0), Some(&0));
+        assert_eq!(map.insert(0, 0).get(&1), None);
+        assert_eq!(map.insert(1, 0).get(&0), None);
+        assert_eq!(map.insert(1, 0).get(&1), Some(&0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).get(&0), Some(&0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).get(&1), Some(&0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).get(&2), None);
     }
 
     #[test]
@@ -200,7 +200,7 @@ mod test {
             let (key, _, rest) = map.first_rest().unwrap();
 
             assert_eq!(rest.len(), map.len() - 1);
-            assert_eq!(rest.find(key), None);
+            assert_eq!(rest.get(key), None);
 
             map = rest;
         }
@@ -259,7 +259,7 @@ mod test {
     }
 
     #[bench]
-    fn bench_find(bencher: &mut Bencher) {
+    fn bench_get(bencher: &mut Bencher) {
         let keys = generate_keys();
         let mut map = Map::new();
 
@@ -269,7 +269,7 @@ mod test {
 
         bencher.iter(|| {
             for key in &keys {
-                map.find(&key);
+                map.get(&key);
             }
         });
     }
