@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
-use hamt_sync::Map;
+use hamt::Map;
 use std::collections::HashMap;
 
 fn generate_keys() -> Vec<usize> {
