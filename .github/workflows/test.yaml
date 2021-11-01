@@ -9,12 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: rustup default nightly
       - run: cargo build
       - run: git diff --exit-code
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: rustup default nightly
       - run: cargo test
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: cargo bench
