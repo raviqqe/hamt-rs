@@ -1,6 +1,7 @@
 use crate::hamt::{Hamt, HamtIterator};
 use crate::node::Node;
 use std::hash::Hash;
+use std::ops::Index;
 
 /// Map data structure of HAMT.
 ///
@@ -21,6 +22,11 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
         }
     }
 
+    /// Finds a key and its corresponding value in a map.
+    pub fn get(&self, key: &K) -> Option<&V> {
+        self.hamt.get(key)
+    }
+
     /// Inserts a key-value pair into a map.
     pub fn insert(&self, key: K, value: V) -> Self {
         let (hamt, ok) = self.hamt.insert(key, value);
@@ -37,11 +43,6 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
             size: self.size - 1,
             hamt,
         })
-    }
-
-    /// Finds a key and its corresponding value in a map.
-    pub fn get(&self, key: &K) -> Option<&V> {
-        self.hamt.get(key)
     }
 
     /// Removes the first element in a map and returns a new map containing the
@@ -68,6 +69,15 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
 impl<K: Clone + Hash + PartialEq, V: Clone> Default for Map<K, V> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// TODO Remove Clone requirements.
+impl<K: Hash + PartialEq + Clone, V: Clone> Index<&K> for Map<K, V> {
+    type Output = V;
+
+    fn index(&self, key: &K) -> &V {
+        self.get(key).expect("invalid key")
     }
 }
 
