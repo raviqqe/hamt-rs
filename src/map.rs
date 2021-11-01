@@ -31,16 +31,16 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
         }
     }
 
-    /// Deletes a key and its corresponding value from a map.
-    pub fn delete(&self, key: &K) -> Option<Self> {
-        self.hamt.delete(key).map(|hamt| Map {
+    /// Removes a key and returns its corresponding value from a map if any.
+    pub fn remove(&self, key: &K) -> Option<Self> {
+        self.hamt.remove(key).map(|hamt| Map {
             size: self.size - 1,
             hamt,
         })
     }
 
     /// Finds a key and its corresponding value in a map.
-    pub fn find(&self, key: &K) -> Option<&V> {
+    pub fn get(&self, key: &K) -> Option<&V> {
         self.hamt.get(key)
     }
 
@@ -60,7 +60,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 
     /// Returns a size of a map.
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.size
     }
 }
@@ -108,10 +108,10 @@ mod test {
     fn insert() {
         let map = Map::new();
 
-        assert_eq!(map.size(), 0);
-        assert_eq!(map.insert(0, 0).size(), 1);
-        assert_eq!(map.insert(0, 0).insert(0, 0).size(), 1);
-        assert_eq!(map.insert(0, 0).insert(1, 0).size(), 2);
+        assert_eq!(map.len(), 0);
+        assert_eq!(map.insert(0, 0).len(), 1);
+        assert_eq!(map.insert(0, 0).insert(0, 0).len(), 1);
+        assert_eq!(map.insert(0, 0).insert(1, 0).len(), 2);
     }
 
     #[test]
@@ -120,7 +120,7 @@ mod test {
 
         for index in 0..NUM_ITERATIONS {
             map = map.insert(index, index);
-            assert_eq!(map.size(), index + 1);
+            assert_eq!(map.len(), index + 1);
         }
     }
 
@@ -131,61 +131,61 @@ mod test {
         for index in 0..NUM_ITERATIONS {
             let ey = random();
             map = map.insert(ey, ey);
-            assert_eq!(map.size(), index + 1);
+            assert_eq!(map.len(), index + 1);
         }
     }
 
     #[test]
-    fn delete() {
+    fn remove() {
         let map = Map::new();
 
-        assert_eq!(map.insert(0, 0).delete(&0), Some(map.clone()));
-        assert_eq!(map.insert(0, 0).delete(&1), None);
+        assert_eq!(map.insert(0, 0).remove(&0), Some(map.clone()));
+        assert_eq!(map.insert(0, 0).remove(&1), None);
         assert_eq!(
-            map.insert(0, 0).insert(1, 0).delete(&0),
+            map.insert(0, 0).insert(1, 0).remove(&0),
             Some(map.insert(1, 0))
         );
         assert_eq!(
-            map.insert(0, 0).insert(1, 0).delete(&1),
+            map.insert(0, 0).insert(1, 0).remove(&1),
             Some(map.insert(0, 0))
         );
-        assert_eq!(map.insert(0, 0).insert(1, 0).delete(&2), None);
+        assert_eq!(map.insert(0, 0).insert(1, 0).remove(&2), None);
     }
 
     #[test]
-    fn insert_delete_many() {
+    fn insert_remove_many() {
         let mut map: Map<i16, i16> = Map::new();
 
         for _ in 0..NUM_ITERATIONS {
             let key = random();
-            let size = map.size();
-            let found = map.find(&key).is_some();
+            let size = map.len();
+            let found = map.get(&key).is_some();
 
             if random() {
                 map = map.insert(key, key);
 
-                assert_eq!(map.size(), if found { size } else { size + 1 });
-                assert_eq!(map.find(&key), Some(&key));
+                assert_eq!(map.len(), if found { size } else { size + 1 });
+                assert_eq!(map.get(&key), Some(&key));
             } else {
-                map = map.delete(&key).unwrap_or(map);
+                map = map.remove(&key).unwrap_or(map);
 
-                assert_eq!(map.size(), if found { size - 1 } else { size });
-                assert_eq!(map.find(&key), None);
+                assert_eq!(map.len(), if found { size - 1 } else { size });
+                assert_eq!(map.get(&key), None);
             }
         }
     }
 
     #[test]
-    fn find() {
+    fn get() {
         let map = Map::new();
 
-        assert_eq!(map.insert(0, 0).find(&0), Some(&0));
-        assert_eq!(map.insert(0, 0).find(&1), None);
-        assert_eq!(map.insert(1, 0).find(&0), None);
-        assert_eq!(map.insert(1, 0).find(&1), Some(&0));
-        assert_eq!(map.insert(0, 0).insert(1, 0).find(&0), Some(&0));
-        assert_eq!(map.insert(0, 0).insert(1, 0).find(&1), Some(&0));
-        assert_eq!(map.insert(0, 0).insert(1, 0).find(&2), None);
+        assert_eq!(map.insert(0, 0).get(&0), Some(&0));
+        assert_eq!(map.insert(0, 0).get(&1), None);
+        assert_eq!(map.insert(1, 0).get(&0), None);
+        assert_eq!(map.insert(1, 0).get(&1), Some(&0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).get(&0), Some(&0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).get(&1), Some(&0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).get(&2), None);
     }
 
     #[test]
@@ -196,11 +196,11 @@ mod test {
             map = map.insert(random(), 0);
         }
 
-        for _ in 0..map.size() {
+        for _ in 0..map.len() {
             let (key, _, rest) = map.first_rest().unwrap();
 
-            assert_eq!(rest.size(), map.size() - 1);
-            assert_eq!(rest.find(key), None);
+            assert_eq!(rest.len(), map.len() - 1);
+            assert_eq!(rest.get(key), None);
 
             map = rest;
         }
@@ -224,7 +224,7 @@ mod test {
                 }
 
                 for key in &deleted_keys {
-                    *map = map.delete(key).unwrap_or_else(|| map.clone());
+                    *map = map.remove(key).unwrap_or_else(|| map.clone());
                 }
             }
 
@@ -259,7 +259,7 @@ mod test {
     }
 
     #[bench]
-    fn bench_find(bencher: &mut Bencher) {
+    fn bench_get(bencher: &mut Bencher) {
         let keys = generate_keys();
         let mut map = Map::new();
 
@@ -269,7 +269,7 @@ mod test {
 
         bencher.iter(|| {
             for key in &keys {
-                map.find(&key);
+                map.get(&key);
             }
         });
     }

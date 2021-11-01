@@ -138,7 +138,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
         }
     }
 
-    fn delete(&self, key: &K) -> Option<Self> {
+    fn remove(&self, key: &K) -> Option<Self> {
         let index = self.entry_index(key);
         let entry = match &self.entries[index] {
             Entry::Empty => None,
@@ -149,8 +149,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                     None
                 }
             }
-            Entry::Hamt(hamt) => hamt.delete(key).map(Entry::from),
-            Entry::Bucket(bucket) => bucket.delete(key).map(Entry::from),
+            Entry::Hamt(hamt) => hamt.remove(key).map(Entry::from),
+            Entry::Bucket(bucket) => bucket.remove(key).map(Entry::from),
         }?;
 
         Some(self.set_entry(index, entry))
@@ -176,7 +176,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
             match entry {
                 Entry::Empty => {}
                 Entry::KeyValue(key, value) => {
-                    return Some((key, value, self.delete(key).unwrap()))
+                    return Some((key, value, self.remove(key).unwrap()))
                 }
                 Entry::Hamt(hamt) => {
                     let (key, value, rest) = hamt.first_rest().unwrap();
@@ -342,24 +342,24 @@ mod tests {
     }
 
     #[test]
-    fn delete() {
+    fn remove() {
         let hamt = Hamt::new(0);
 
-        assert_eq!(hamt.insert(0, 0).0.delete(&0), Some(hamt.clone()));
-        assert_eq!(hamt.insert(0, 0).0.delete(&1), None);
+        assert_eq!(hamt.insert(0, 0).0.remove(&0), Some(hamt.clone()));
+        assert_eq!(hamt.insert(0, 0).0.remove(&1), None);
         assert_eq!(
-            hamt.insert(0, 0).0.insert(1, 0).0.delete(&0),
+            hamt.insert(0, 0).0.insert(1, 0).0.remove(&0),
             Some(hamt.insert(1, 0).0)
         );
         assert_eq!(
-            hamt.insert(0, 0).0.insert(1, 0).0.delete(&1),
+            hamt.insert(0, 0).0.insert(1, 0).0.remove(&1),
             Some(hamt.insert(0, 0).0)
         );
-        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.delete(&2), None);
+        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.remove(&2), None);
     }
 
     #[test]
-    fn insert_delete_many() {
+    fn insert_remove_many() {
         let mut hamt: Hamt<i16, i16> = Hamt::new(0);
 
         for _ in 0..NUM_ITERATIONS {
@@ -373,7 +373,7 @@ mod tests {
                 assert_eq!(hamt.entry_count(), if found { size } else { size + 1 });
                 assert_eq!(hamt.get(&key), Some(&key));
             } else {
-                hamt = hamt.delete(&key).unwrap_or(hamt);
+                hamt = hamt.remove(&key).unwrap_or(hamt);
 
                 assert_eq!(hamt.entry_count(), if found { size - 1 } else { size });
                 assert_eq!(hamt.get(&key), None);
@@ -384,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn find() {
+    fn get() {
         let hamt = Hamt::new(0);
 
         assert_eq!(hamt.insert(0, 0).0.get(&0), Some(&0));
@@ -446,7 +446,7 @@ mod tests {
                 }
 
                 for key in &deleted_keys {
-                    *hamt = hamt.delete(key).unwrap_or_else(|| hamt.clone());
+                    *hamt = hamt.remove(key).unwrap_or_else(|| hamt.clone());
                 }
             }
 
@@ -528,7 +528,7 @@ mod tests {
     }
 
     #[bench]
-    fn bench_hamt_find(bencher: &mut Bencher) {
+    fn bench_hamt_get(bencher: &mut Bencher) {
         let keys = generate_keys();
         let mut hamt = Hamt::new(0);
 
@@ -544,7 +544,7 @@ mod tests {
     }
 
     #[bench]
-    fn bench_hash_map_find(bencher: &mut Bencher) {
+    fn bench_hash_map_get(bencher: &mut Bencher) {
         let keys = generate_keys();
         let mut map = HashMap::new();
 
