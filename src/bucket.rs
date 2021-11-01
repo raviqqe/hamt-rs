@@ -190,9 +190,9 @@ mod test {
 
     #[test]
     fn equal() {
-        let one = Bucket::new(vec![(1, 0)]);
-        let other = Bucket::new(vec![(2, 0)]);
-
-        assert_eq!(one.insert(2, 0), other.insert(1, 0));
+        assert_eq!(
+            Bucket::new(vec![(1, 0), (2, 0)]),
+            Bucket::new(vec![(2, 0), (1, 0)])
+        );
     }
 }
