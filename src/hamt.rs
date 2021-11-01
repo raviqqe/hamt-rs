@@ -203,14 +203,14 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
             == 1
     }
 
-    fn size(&self) -> usize {
+    fn entry_count(&self) -> usize {
         self.entries
             .iter()
             .map(|entry| match entry {
                 Entry::Empty => 0,
                 Entry::KeyValue(_, _) => 1,
-                Entry::Hamt(hamt) => hamt.size(),
-                Entry::Bucket(bucket) => bucket.size(),
+                Entry::Hamt(hamt) => hamt.entry_count(),
+                Entry::Bucket(bucket) => bucket.entry_count(),
             })
             .sum()
     }
@@ -313,22 +313,22 @@ mod tests {
     fn insert() {
         let hamt = Hamt::new(0);
 
-        assert_eq!(hamt.size(), 0);
+        assert_eq!(hamt.entry_count(), 0);
 
         let (other, ok) = hamt.insert(0, 0);
 
         assert!(ok);
-        assert_eq!(other.size(), 1);
+        assert_eq!(other.entry_count(), 1);
 
         let (other, ok) = other.insert(0, 0);
 
         assert!(!ok);
-        assert_eq!(other.size(), 1);
+        assert_eq!(other.entry_count(), 1);
 
         let (hamt, ok) = other.insert(1, 0);
 
         assert!(ok);
-        assert_eq!(hamt.size(), 2);
+        assert_eq!(hamt.entry_count(), 2);
     }
 
     #[test]
@@ -339,7 +339,7 @@ mod tests {
             let (other, ok) = hamt.insert(index, index);
             hamt = other;
             assert!(ok);
-            assert_eq!(hamt.size(), index + 1);
+            assert_eq!(hamt.entry_count(), index + 1);
         }
     }
 
@@ -350,7 +350,7 @@ mod tests {
         for index in 0..NUM_ITERATIONS {
             let key = random();
             hamt = hamt.insert(key, key).0;
-            assert_eq!(hamt.size(), index + 1);
+            assert_eq!(hamt.entry_count(), index + 1);
         }
     }
 
@@ -377,18 +377,18 @@ mod tests {
 
         for _ in 0..NUM_ITERATIONS {
             let key = random();
-            let size = hamt.size();
+            let size = hamt.entry_count();
             let found = hamt.find(&key).is_some();
 
             if random() {
                 hamt = hamt.insert(key, key).0;
 
-                assert_eq!(hamt.size(), if found { size } else { size + 1 });
+                assert_eq!(hamt.entry_count(), if found { size } else { size + 1 });
                 assert_eq!(hamt.find(&key), Some(&key));
             } else {
                 hamt = hamt.delete(&key).unwrap_or(hamt);
 
-                assert_eq!(hamt.size(), if found { size - 1 } else { size });
+                assert_eq!(hamt.entry_count(), if found { size - 1 } else { size });
                 assert_eq!(hamt.find(&key), None);
             }
 
@@ -420,10 +420,10 @@ mod tests {
             assert!(hamt.is_normal());
         }
 
-        for _ in 0..hamt.size() {
+        for _ in 0..hamt.entry_count() {
             let (key, _, rest) = hamt.first_rest().unwrap();
 
-            assert_eq!(rest.size(), hamt.size() - 1);
+            assert_eq!(rest.entry_count(), hamt.entry_count() - 1);
             assert_eq!(rest.find(key), None);
 
             hamt = rest;
@@ -518,7 +518,7 @@ mod tests {
                     assert_eq!(map[key], *value);
                 }
 
-                assert_eq!(size, hamt.size());
+                assert_eq!(size, hamt.entry_count());
             }
         }
     }

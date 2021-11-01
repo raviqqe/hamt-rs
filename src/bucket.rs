@@ -100,10 +100,10 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
     }
 
     fn is_singleton(&self) -> bool {
-        self.size() == 1
+        self.entry_count() == 1
     }
 
-    fn size(&self) -> usize {
+    fn entry_count(&self) -> usize {
         self.entries.len()
     }
 }
@@ -135,20 +135,20 @@ mod test {
     fn insert() {
         let bucket = Bucket::new(vec![(42, 0)]);
 
-        assert_eq!(bucket.size(), 1);
+        assert_eq!(bucket.entry_count(), 1);
 
         let (other_bucket, ok) = bucket.insert(0, 0);
 
         assert!(ok);
-        assert_eq!(bucket.size(), 1);
-        assert_eq!(other_bucket.size(), 2);
+        assert_eq!(bucket.entry_count(), 1);
+        assert_eq!(other_bucket.entry_count(), 2);
     }
 
     #[test]
     fn delete() {
         let bucket = Bucket::new(vec![(42, 0)]);
 
-        assert_eq!(bucket.delete(&42).unwrap().size(), 0);
+        assert_eq!(bucket.delete(&42).unwrap().entry_count(), 0);
         assert_eq!(
             bucket.insert(0, 0).0.delete(&42).unwrap(),
             Bucket::new(vec![(0, 0)])

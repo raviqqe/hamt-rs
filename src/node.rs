@@ -10,5 +10,5 @@ pub trait Node: Sized {
     fn first_rest(&self) -> Option<(&Self::Key, &Self::Value, Self)>;
     fn is_singleton(&self) -> bool; // for normalization
     #[cfg(test)]
-    fn size(&self) -> usize; // for debugging
+    fn entry_count(&self) -> usize; // for debugging
 }
