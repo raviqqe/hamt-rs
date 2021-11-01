@@ -1,5 +1,4 @@
-use crate::bucket::Bucket;
-use crate::node::Node;
+use crate::{bucket::Bucket, node::Node};
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},

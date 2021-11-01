@@ -1,7 +1,8 @@
-use crate::hamt::{Hamt, HamtIterator};
-use crate::node::Node;
-use std::hash::Hash;
-use std::ops::Index;
+use crate::{
+    hamt::{Hamt, HamtIterator},
+    node::Node,
+};
+use std::{hash::Hash, ops::Index};
 
 /// Map data structure of HAMT.
 ///
@@ -53,6 +54,11 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     /// Returns a size of a map.
     pub fn len(&self) -> usize {
         self.size
+    }
+
+    /// Returns true if a map is empty.
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
     }
 
     /// Returns keys in a map
