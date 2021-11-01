@@ -27,6 +27,11 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
         self.hamt.get(key)
     }
 
+    /// Checks if a key is contained in a map.
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.hamt.get(key).is_some()
+    }
+
     /// Inserts a key-value pair into a map.
     pub fn insert(&self, key: K, value: V) -> Self {
         let (hamt, ok) = self.hamt.insert(key, value);
@@ -45,6 +50,21 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
         })
     }
 
+    /// Returns a size of a map.
+    pub fn len(&self) -> usize {
+        self.size
+    }
+
+    /// Returns keys in a map
+    pub fn keys(&self) -> impl Iterator<Item = &K> {
+        self.into_iter().map(|(key, _)| key)
+    }
+
+    /// Returns keys in a map
+    pub fn values(&self) -> impl Iterator<Item = &V> {
+        self.into_iter().map(|(_, value)| value)
+    }
+
     /// Removes the first element in a map and returns a new map containing the
     /// rest of elements.
     pub fn first_rest(&self) -> Option<(&K, &V, Self)> {
@@ -58,11 +78,6 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
                 },
             )
         })
-    }
-
-    /// Returns a size of a map.
-    pub fn len(&self) -> usize {
-        self.size
     }
 }
 

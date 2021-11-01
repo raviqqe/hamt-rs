@@ -1,6 +1,3 @@
-#![cfg(test)]
-#![feature(test)]
-
 //! HAMT implementation whose sub-trees can be shared over threads.
 //!
 //! Hash-Array Mapped Trie (HAMT) is a data structure popular as a map (a.k.a.
@@ -8,7 +5,8 @@
 //! widely by functional programming languages like Scala and Clojure to
 //! implement immutable and memory-efficient associative arrays and sets.
 
-#[cfg(test)]
+#![feature(test)]
+
 extern crate test;
 
 mod bucket;
