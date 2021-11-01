@@ -67,7 +67,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
         }
     }
 
-    fn delete(&self, key: &K) -> Option<Self> {
+    fn remove(&self, key: &K) -> Option<Self> {
         self.find_index(key).map(|index| {
             let mut entries = self.entries.to_vec();
 
@@ -150,9 +150,9 @@ mod test {
     fn delete() {
         let bucket = Bucket::new(vec![(42, 0)]);
 
-        assert_eq!(bucket.delete(&42).unwrap().entry_count(), 0);
+        assert_eq!(bucket.remove(&42).unwrap().entry_count(), 0);
         assert_eq!(
-            bucket.insert(0, 0).0.delete(&42).unwrap(),
+            bucket.insert(0, 0).0.remove(&42).unwrap(),
             Bucket::new(vec![(0, 0)])
         );
     }
@@ -174,8 +174,8 @@ mod test {
             Some((&42, &0, Bucket::new(vec![(0, 0)])))
         );
         assert_eq!(
-            bucket.delete(&0).unwrap().first_rest(),
-            Some((&42, &0, bucket.delete(&0).unwrap().delete(&42).unwrap()))
+            bucket.remove(&0).unwrap().first_rest(),
+            Some((&42, &0, bucket.remove(&0).unwrap().remove(&42).unwrap()))
         );
     }
 
@@ -183,7 +183,7 @@ mod test {
     fn is_singleton() {
         let bucket = Bucket::new(vec![(42, 0)]);
 
-        assert!(!bucket.delete(&42).unwrap().is_singleton());
+        assert!(!bucket.remove(&42).unwrap().is_singleton());
         assert!(bucket.is_singleton());
         assert!(!bucket.insert(0, 0).0.is_singleton());
     }

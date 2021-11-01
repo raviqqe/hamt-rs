@@ -33,7 +33,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
 
     /// Deletes a key and its corresponding value from a map.
     pub fn delete(&self, key: &K) -> Option<Self> {
-        self.hamt.delete(key).map(|hamt| Map {
+        self.hamt.remove(key).map(|hamt| Map {
             size: self.size - 1,
             hamt,
         })
