@@ -60,7 +60,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 
     /// Returns a size of a map.
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.size
     }
 }
@@ -108,10 +108,10 @@ mod test {
     fn insert() {
         let map = Map::new();
 
-        assert_eq!(map.size(), 0);
-        assert_eq!(map.insert(0, 0).size(), 1);
-        assert_eq!(map.insert(0, 0).insert(0, 0).size(), 1);
-        assert_eq!(map.insert(0, 0).insert(1, 0).size(), 2);
+        assert_eq!(map.len(), 0);
+        assert_eq!(map.insert(0, 0).len(), 1);
+        assert_eq!(map.insert(0, 0).insert(0, 0).len(), 1);
+        assert_eq!(map.insert(0, 0).insert(1, 0).len(), 2);
     }
 
     #[test]
@@ -120,7 +120,7 @@ mod test {
 
         for index in 0..NUM_ITERATIONS {
             map = map.insert(index, index);
-            assert_eq!(map.size(), index + 1);
+            assert_eq!(map.len(), index + 1);
         }
     }
 
@@ -131,7 +131,7 @@ mod test {
         for index in 0..NUM_ITERATIONS {
             let ey = random();
             map = map.insert(ey, ey);
-            assert_eq!(map.size(), index + 1);
+            assert_eq!(map.len(), index + 1);
         }
     }
 
@@ -158,18 +158,18 @@ mod test {
 
         for _ in 0..NUM_ITERATIONS {
             let key = random();
-            let size = map.size();
+            let size = map.len();
             let found = map.find(&key).is_some();
 
             if random() {
                 map = map.insert(key, key);
 
-                assert_eq!(map.size(), if found { size } else { size + 1 });
+                assert_eq!(map.len(), if found { size } else { size + 1 });
                 assert_eq!(map.find(&key), Some(&key));
             } else {
                 map = map.remove(&key).unwrap_or(map);
 
-                assert_eq!(map.size(), if found { size - 1 } else { size });
+                assert_eq!(map.len(), if found { size - 1 } else { size });
                 assert_eq!(map.find(&key), None);
             }
         }
@@ -196,10 +196,10 @@ mod test {
             map = map.insert(random(), 0);
         }
 
-        for _ in 0..map.size() {
+        for _ in 0..map.len() {
             let (key, _, rest) = map.first_rest().unwrap();
 
-            assert_eq!(rest.size(), map.size() - 1);
+            assert_eq!(rest.len(), map.len() - 1);
             assert_eq!(rest.find(key), None);
 
             map = rest;
