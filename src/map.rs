@@ -41,7 +41,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
 
     /// Finds a key and its corresponding value in a map.
     pub fn find(&self, key: &K) -> Option<&V> {
-        self.hamt.find(key)
+        self.hamt.get(key)
     }
 
     /// Removes the first element in a map and returns a new map containing the

@@ -142,7 +142,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
         ))
     }
 
-    fn find(&self, key: &K) -> Option<&V> {
+    fn get(&self, key: &K) -> Option<&V> {
         match &self.entries[self.entry_index(key)] {
             Entry::Empty => None,
             Entry::KeyValue(other_key, value) => {
@@ -152,8 +152,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                     None
                 }
             }
-            Entry::Hamt(hamt) => hamt.find(key),
-            Entry::Bucket(bucket) => bucket.find(key),
+            Entry::Hamt(hamt) => hamt.get(key),
+            Entry::Bucket(bucket) => bucket.get(key),
         }
     }
 
@@ -378,18 +378,18 @@ mod tests {
         for _ in 0..NUM_ITERATIONS {
             let key = random();
             let size = hamt.entry_count();
-            let found = hamt.find(&key).is_some();
+            let found = hamt.get(&key).is_some();
 
             if random() {
                 hamt = hamt.insert(key, key).0;
 
                 assert_eq!(hamt.entry_count(), if found { size } else { size + 1 });
-                assert_eq!(hamt.find(&key), Some(&key));
+                assert_eq!(hamt.get(&key), Some(&key));
             } else {
                 hamt = hamt.delete(&key).unwrap_or(hamt);
 
                 assert_eq!(hamt.entry_count(), if found { size - 1 } else { size });
-                assert_eq!(hamt.find(&key), None);
+                assert_eq!(hamt.get(&key), None);
             }
 
             assert!(hamt.is_normal());
@@ -400,13 +400,13 @@ mod tests {
     fn find() {
         let hamt = Hamt::new(0);
 
-        assert_eq!(hamt.insert(0, 0).0.find(&0), Some(&0));
-        assert_eq!(hamt.insert(0, 0).0.find(&1), None);
-        assert_eq!(hamt.insert(1, 0).0.find(&0), None);
-        assert_eq!(hamt.insert(1, 0).0.find(&1), Some(&0));
-        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.find(&0), Some(&0));
-        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.find(&1), Some(&0));
-        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.find(&2), None);
+        assert_eq!(hamt.insert(0, 0).0.get(&0), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.get(&1), None);
+        assert_eq!(hamt.insert(1, 0).0.get(&0), None);
+        assert_eq!(hamt.insert(1, 0).0.get(&1), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.get(&0), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.get(&1), Some(&0));
+        assert_eq!(hamt.insert(0, 0).0.insert(1, 0).0.get(&2), None);
     }
 
     #[test]
@@ -424,7 +424,7 @@ mod tests {
             let (key, _, rest) = hamt.first_rest().unwrap();
 
             assert_eq!(rest.entry_count(), hamt.entry_count() - 1);
-            assert_eq!(rest.find(key), None);
+            assert_eq!(rest.get(key), None);
 
             hamt = rest;
 
@@ -551,7 +551,7 @@ mod tests {
 
         bencher.iter(|| {
             for key in &keys {
-                hamt.find(&key);
+                hamt.get(&key);
             }
         });
     }

@@ -79,7 +79,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
         })
     }
 
-    fn find(&self, key: &K) -> Option<&V> {
+    fn get(&self, key: &K) -> Option<&V> {
         self.find_index(key).map(|index| &self.entries[index].1)
     }
 
@@ -161,8 +161,8 @@ mod test {
     fn find() {
         let bucket = Bucket::new(vec![(42, 0)]);
 
-        assert_eq!(bucket.find(&42), Some(&0));
-        assert_eq!(bucket.find(&0), None);
+        assert_eq!(bucket.get(&42), Some(&0));
+        assert_eq!(bucket.get(&0), None);
     }
 
     #[test]
