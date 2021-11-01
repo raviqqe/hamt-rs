@@ -1,4 +1,4 @@
-use crate::{bucket::Bucket, node::Node};
+use crate::bucket::Bucket;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -91,11 +91,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
     }
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
-    type Key = K;
-    type Value = V;
-
-    fn insert(&self, key: K, value: V) -> (Self, bool) {
+impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
+    pub fn insert(&self, key: K, value: V) -> (Self, bool) {
         let index = self.entry_index(&key);
 
         match &self.entries[index] {
@@ -137,7 +134,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
         }
     }
 
-    fn remove(&self, key: &K) -> Option<Self> {
+    pub fn remove(&self, key: &K) -> Option<Self> {
         let index = self.entry_index(key);
         let entry = match &self.entries[index] {
             Entry::Empty => None,
@@ -155,7 +152,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
         Some(self.set_entry(index, entry))
     }
 
-    fn get(&self, key: &K) -> Option<&V> {
+    pub fn get(&self, key: &K) -> Option<&V> {
         match &self.entries[self.entry_index(key)] {
             Entry::Empty => None,
             Entry::KeyValue(other_key, value) => {
@@ -170,7 +167,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
         }
     }
 
-    fn first_rest(&self) -> Option<(&K, &V, Self)> {
+    pub fn first_rest(&self) -> Option<(&K, &V, Self)> {
         for (index, entry) in self.entries.iter().enumerate() {
             match entry {
                 Entry::Empty => {}
@@ -205,6 +202,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
             == 1
     }
 
+    #[cfg(test)]
     fn entry_count(&self) -> usize {
         self.entries
             .iter()

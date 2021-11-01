@@ -1,5 +1,4 @@
-use crate::node::Node;
-use std::{hash::Hash, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct Bucket<K, V> {
@@ -8,7 +7,7 @@ pub struct Bucket<K, V> {
 
 impl<K, V> Bucket<K, V> {
     pub fn new(entries: Vec<(K, V)>) -> Self {
-        Bucket {
+        Self {
             entries: entries.into(),
         }
     }
@@ -19,12 +18,25 @@ impl<K, V> Bucket<K, V> {
         self.entries.len()
     }
 
+    pub fn is_singleton(&self) -> bool {
+        self.len() == 1
+    }
+
     pub fn as_slice(&self) -> &[(K, V)] {
         &self.entries
+    }
+
+    #[cfg(test)]
+    pub fn entry_count(&self) -> usize {
+        self.entries.len()
     }
 }
 
 impl<K: PartialEq, V> Bucket<K, V> {
+    pub fn get(&self, key: &K) -> Option<&V> {
+        self.find_index(key).map(|index| &self.entries[index].1)
+    }
+
     fn find_index(&self, key: &K) -> Option<usize> {
         for (index, (other_key, _)) in self.entries.iter().enumerate() {
             if key == other_key {
@@ -36,11 +48,8 @@ impl<K: PartialEq, V> Bucket<K, V> {
     }
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
-    type Key = K;
-    type Value = V;
-
-    fn insert(&self, key: K, value: V) -> (Self, bool) {
+impl<K: Clone + PartialEq, V: Clone> Bucket<K, V> {
+    pub fn insert(&self, key: K, value: V) -> (Self, bool) {
         let mut entries = self.entries.to_vec();
 
         match self.find_index(&key) {
@@ -67,7 +76,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
         }
     }
 
-    fn remove(&self, key: &K) -> Option<Self> {
+    pub fn remove(&self, key: &K) -> Option<Self> {
         self.find_index(key).map(|index| {
             let mut entries = self.entries.to_vec();
 
@@ -79,11 +88,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
         })
     }
 
-    fn get(&self, key: &K) -> Option<&V> {
-        self.find_index(key).map(|index| &self.entries[index].1)
-    }
-
-    fn first_rest(&self) -> Option<(&K, &V, Self)> {
+    pub fn first_rest(&self) -> Option<(&K, &V, Self)> {
         if self.entries.is_empty() {
             return None;
         }
@@ -99,14 +104,6 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Bucket<K, V> {
                 entries: entries.into(),
             },
         ))
-    }
-
-    fn is_singleton(&self) -> bool {
-        self.entry_count() == 1
-    }
-
-    fn entry_count(&self) -> usize {
-        self.entries.len()
     }
 }
 
