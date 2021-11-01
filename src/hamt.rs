@@ -132,7 +132,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                 }
                 Entry::Hamt(hamt) => match hamt.delete(key) {
                     None => return None,
-                    Some(h) => convert_node_to_entry(&h, |h| Entry::Hamt(Arc::new(h))),
+                    Some(hamt) => convert_node_to_entry(&hamt, |h| Entry::Hamt(Arc::new(h))),
                 },
                 Entry::Bucket(bucket) => match bucket.delete(key) {
                     None => return None,
