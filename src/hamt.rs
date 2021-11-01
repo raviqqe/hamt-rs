@@ -218,7 +218,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
     }
 }
 
-fn hash<K: Hash>(key: &K) -> u64 {
+fn hash(key: &impl Hash) -> u64 {
     let mut hasher = DefaultHasher::new();
     key.hash(&mut hasher);
     hasher.finish()
