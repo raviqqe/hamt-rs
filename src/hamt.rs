@@ -110,18 +110,18 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
                     self.set_entry(
                         index,
                         if self.level < MAX_LEVEL {
-                            Entry::Hamt(Arc::new(
-                                Hamt::new(self.level + 1)
-                                    .insert(other_key.clone(), other_value.clone())
-                                    .0
-                                    .insert(key, value)
-                                    .0,
-                            ))
+                            Hamt::new(self.level + 1)
+                                .insert(other_key.clone(), other_value.clone())
+                                .0
+                                .insert(key, value)
+                                .0
+                                .into()
                         } else {
-                            Entry::Bucket(Bucket::new(vec![
+                            Bucket::new(vec![
                                 (key, value),
                                 (other_key.clone(), other_value.clone()),
-                            ]))
+                            ])
+                            .into()
                         },
                     ),
                     true,
@@ -129,11 +129,11 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Node for Hamt<K, V> {
             }
             Entry::Hamt(hamt) => {
                 let (hamt, ok) = hamt.insert(key, value);
-                (self.set_entry(index, Entry::Hamt(Arc::new(hamt))), ok)
+                (self.set_entry(index, hamt.into()), ok)
             }
             Entry::Bucket(bucket) => {
                 let (bucket, ok) = bucket.insert(key, value);
-                (self.set_entry(index, Entry::Bucket(bucket)), ok)
+                (self.set_entry(index, bucket.into()), ok)
             }
         }
     }
