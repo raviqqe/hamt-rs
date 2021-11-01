@@ -342,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    fn delete() {
+    fn remove() {
         let hamt = Hamt::new(0);
 
         assert_eq!(hamt.insert(0, 0).0.remove(&0), Some(hamt.clone()));
@@ -359,7 +359,7 @@ mod tests {
     }
 
     #[test]
-    fn insert_delete_many() {
+    fn insert_remove_many() {
         let mut hamt: Hamt<i16, i16> = Hamt::new(0);
 
         for _ in 0..NUM_ITERATIONS {

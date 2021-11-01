@@ -147,7 +147,7 @@ mod test {
     }
 
     #[test]
-    fn delete() {
+    fn remove() {
         let bucket = Bucket::new(vec![(42, 0)]);
 
         assert_eq!(bucket.remove(&42).unwrap().entry_count(), 0);

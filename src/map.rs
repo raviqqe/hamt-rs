@@ -31,8 +31,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
         }
     }
 
-    /// Deletes a key and its corresponding value from a map.
-    pub fn delete(&self, key: &K) -> Option<Self> {
+    /// Removes a key and returns its corresponding value from a map if any.
+    pub fn remove(&self, key: &K) -> Option<Self> {
         self.hamt.remove(key).map(|hamt| Map {
             size: self.size - 1,
             hamt,
@@ -136,24 +136,24 @@ mod test {
     }
 
     #[test]
-    fn delete() {
+    fn remove() {
         let map = Map::new();
 
-        assert_eq!(map.insert(0, 0).delete(&0), Some(map.clone()));
-        assert_eq!(map.insert(0, 0).delete(&1), None);
+        assert_eq!(map.insert(0, 0).remove(&0), Some(map.clone()));
+        assert_eq!(map.insert(0, 0).remove(&1), None);
         assert_eq!(
-            map.insert(0, 0).insert(1, 0).delete(&0),
+            map.insert(0, 0).insert(1, 0).remove(&0),
             Some(map.insert(1, 0))
         );
         assert_eq!(
-            map.insert(0, 0).insert(1, 0).delete(&1),
+            map.insert(0, 0).insert(1, 0).remove(&1),
             Some(map.insert(0, 0))
         );
-        assert_eq!(map.insert(0, 0).insert(1, 0).delete(&2), None);
+        assert_eq!(map.insert(0, 0).insert(1, 0).remove(&2), None);
     }
 
     #[test]
-    fn insert_delete_many() {
+    fn insert_remove_many() {
         let mut map: Map<i16, i16> = Map::new();
 
         for _ in 0..NUM_ITERATIONS {
@@ -167,7 +167,7 @@ mod test {
                 assert_eq!(map.size(), if found { size } else { size + 1 });
                 assert_eq!(map.find(&key), Some(&key));
             } else {
-                map = map.delete(&key).unwrap_or(map);
+                map = map.remove(&key).unwrap_or(map);
 
                 assert_eq!(map.size(), if found { size - 1 } else { size });
                 assert_eq!(map.find(&key), None);
@@ -224,7 +224,7 @@ mod test {
                 }
 
                 for key in &deleted_keys {
-                    *map = map.delete(key).unwrap_or_else(|| map.clone());
+                    *map = map.remove(key).unwrap_or_else(|| map.clone());
                 }
             }
 
