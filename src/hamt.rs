@@ -1,3 +1,4 @@
+use crate::hashed_key::IntoKey;
 use crate::key_value::KeyValue;
 use crate::{bucket::Bucket, hashed_key::HashedKey};
 use std::{hash::Hash, sync::Arc};
@@ -116,14 +117,20 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
         }
     }
 
-    pub fn insert(&self, key: K, value: V) -> (Self, bool) {
+    pub fn insert(&self, key: impl HashedKey<K> + IntoKey<K>, value: V) -> (Self, bool) {
         let index = self.entry_index(&key);
 
         match &self.entries[index] {
-            Entry::Empty => (self.set_entry(index, KeyValue::new(key, value)), true),
+            Entry::Empty => (
+                self.set_entry(index, KeyValue::new(key.into_key(), value)),
+                true,
+            ),
             Entry::KeyValue(key_value) => {
-                if &key == key_value.key() {
-                    return (self.set_entry(index, KeyValue::new(key, value)), false);
+                if key.key() == key_value.key() {
+                    return (
+                        self.set_entry(index, KeyValue::new(key.into_key(), value)),
+                        false,
+                    );
                 }
 
                 (
@@ -142,7 +149,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
                             )
                         } else {
                             Bucket::new(vec![
-                                (key, value),
+                                (key.into_key(), value),
                                 (key_value.key().clone(), key_value.value().clone()),
                             ])
                             .into()
@@ -156,7 +163,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
                 (self.set_entry(index, hamt), ok)
             }
             Entry::Bucket(bucket) => {
-                let (bucket, ok) = bucket.insert(key, value);
+                let (bucket, ok) = bucket.insert(key.into_key(), value);
                 (self.set_entry(index, bucket), ok)
             }
         }

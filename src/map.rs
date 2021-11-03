@@ -1,4 +1,7 @@
-use crate::hamt::{Hamt, HamtIterator};
+use crate::{
+    hamt::{Hamt, HamtIterator},
+    utilities::hash_key,
+};
 use std::{hash::Hash, ops::Index};
 
 /// Map data structure of HAMT.
@@ -22,17 +25,18 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
 
     /// Finds a key and its corresponding value in a map.
     pub fn get(&self, key: &K) -> Option<&V> {
-        self.hamt.get(key)
+        self.hamt.get((key, hash_key(key)))
     }
 
     /// Checks if a key is contained in a map.
     pub fn contains_key(&self, key: &K) -> bool {
-        self.hamt.get(key).is_some()
+        self.get(key).is_some()
     }
 
     /// Inserts a key-value pair into a map.
     pub fn insert(&self, key: K, value: V) -> Self {
-        let (hamt, ok) = self.hamt.insert(key, value);
+        let hash = hash_key(&key);
+        let (hamt, ok) = self.hamt.insert((key, hash), value);
 
         Map {
             size: self.size + (ok as usize),
@@ -42,7 +46,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
 
     /// Removes a key and returns its corresponding value from a map if any.
     pub fn remove(&self, key: &K) -> Option<Self> {
-        self.hamt.remove(key).map(|hamt| Map {
+        self.hamt.remove((key, hash_key(key))).map(|hamt| Map {
             size: self.size - 1,
             hamt,
         })

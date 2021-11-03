@@ -25,3 +25,39 @@ impl<K: Hash> HashedKey<K> for &K {
         hash_key(self)
     }
 }
+
+impl<K: Hash> HashedKey<K> for (K, u64) {
+    fn key(&self) -> &K {
+        &self.0
+    }
+
+    fn hash(&self) -> u64 {
+        self.1
+    }
+}
+
+impl<K: Hash> HashedKey<K> for (&K, u64) {
+    fn key(&self) -> &K {
+        self.0
+    }
+
+    fn hash(&self) -> u64 {
+        self.1
+    }
+}
+
+pub trait IntoKey<K> {
+    fn into_key(self) -> K;
+}
+
+impl<K> IntoKey<K> for K {
+    fn into_key(self) -> K {
+        self
+    }
+}
+
+impl<K> IntoKey<K> for (K, u64) {
+    fn into_key(self) -> K {
+        self.0
+    }
+}
