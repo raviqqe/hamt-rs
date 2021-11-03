@@ -129,33 +129,33 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
             ),
             Entry::KeyValue(key_value) => {
                 if key.key() == key_value.key() {
-                    return (
+                    (
                         self.set_entry(index, KeyValue::new(key.into_key(), value)),
                         false,
-                    );
+                    )
+                } else {
+                    (
+                        self.set_entry(
+                            index,
+                            if self.level < MAX_LEVEL {
+                                Entry::from(
+                                    Hamt::new(self.level + 1)
+                                        .insert(key_value.key().clone(), key_value.value().clone())
+                                        .0
+                                        .insert(key, value)
+                                        .0,
+                                )
+                            } else {
+                                Bucket::new(vec![
+                                    (key.into_key(), value),
+                                    (key_value.key().clone(), key_value.value().clone()),
+                                ])
+                                .into()
+                            },
+                        ),
+                        true,
+                    )
                 }
-
-                (
-                    self.set_entry(
-                        index,
-                        if self.level < MAX_LEVEL {
-                            Entry::from(
-                                Hamt::new(self.level + 1)
-                                    .insert(key_value.key().clone(), key_value.value().clone())
-                                    .0
-                                    .insert(key, value)
-                                    .0,
-                            )
-                        } else {
-                            Bucket::new(vec![
-                                (key.into_key(), value),
-                                (key_value.key().clone(), key_value.value().clone()),
-                            ])
-                            .into()
-                        },
-                    ),
-                    true,
-                )
             }
             Entry::Hamt(hamt) => {
                 let (hamt, ok) = hamt.insert(key, value);
