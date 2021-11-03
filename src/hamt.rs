@@ -1,9 +1,9 @@
-use crate::bucket::Bucket;
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-    sync::Arc,
+use crate::{
+    bucket::Bucket,
+    hashed_key::{HashedKey, IntoKey},
+    key_value::KeyValue,
 };
+use std::{hash::Hash, sync::Arc};
 
 const MAX_LEVEL: u8 = 64 / 5;
 const ENTRY_COUNT: usize = 32;
@@ -11,14 +11,20 @@ const ENTRY_COUNT: usize = 32;
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum Entry<K, V> {
     Empty,
-    KeyValue(K, V),
+    KeyValue(KeyValue<K, V>),
     Hamt(Arc<Hamt<K, V>>),
     Bucket(Bucket<K, V>),
 }
 
 impl<K, V> Default for Entry<K, V> {
     fn default() -> Self {
-        Entry::Empty
+        Self::Empty
+    }
+}
+
+impl<K: Hash, V> From<KeyValue<K, V>> for Entry<K, V> {
+    fn from(key_value: KeyValue<K, V>) -> Self {
+        Self::KeyValue(key_value)
     }
 }
 
@@ -26,9 +32,10 @@ impl<K: Clone + Hash + PartialEq, V: Clone> From<Hamt<K, V>> for Entry<K, V> {
     fn from(hamt: Hamt<K, V>) -> Self {
         if hamt.is_singleton() {
             let (key, value) = hamt.into_iter().next().unwrap();
-            Entry::KeyValue(key.clone(), value.clone())
+
+            Self::KeyValue(KeyValue::new(key.clone(), value.clone()))
         } else {
-            Entry::Hamt(hamt.into())
+            Self::Hamt(hamt.into())
         }
     }
 }
@@ -37,9 +44,10 @@ impl<K: Clone + Hash + PartialEq, V: Clone> From<Bucket<K, V>> for Entry<K, V> {
     fn from(bucket: Bucket<K, V>) -> Self {
         if bucket.is_singleton() {
             let (key, value) = bucket.as_slice().iter().next().unwrap();
-            Entry::KeyValue(key.clone(), value.clone())
+
+            Self::KeyValue(KeyValue::new(key.clone(), value.clone()))
         } else {
-            Entry::Bucket(bucket)
+            Self::Bucket(bucket)
         }
     }
 }
@@ -51,27 +59,152 @@ pub struct Hamt<K, V> {
     entries: [Entry<K, V>; ENTRY_COUNT],
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
+impl<K, V> Hamt<K, V> {
     pub fn new(level: u8) -> Self {
-        Hamt {
+        Self {
             level,
             entries: Default::default(),
         }
     }
 
-    fn entry_index(&self, key: &K) -> usize {
-        ((hash(key) >> (self.level * 5)) & 0b11111) as usize
+    fn entry_index(&self, key: &impl HashedKey<K>) -> usize {
+        ((key.hash() >> (self.level * 5)) & 0b11111) as usize
+    }
+}
+
+impl<K: Hash + PartialEq, V> Hamt<K, V> {
+    pub fn get(&self, key: impl HashedKey<K>) -> Option<&V> {
+        match &self.entries[self.entry_index(&key)] {
+            Entry::Empty => None,
+            Entry::KeyValue(key_value) => {
+                if key.key() == key_value.key() {
+                    Some(key_value.value())
+                } else {
+                    None
+                }
+            }
+            Entry::Hamt(hamt) => hamt.get(key),
+            Entry::Bucket(bucket) => bucket.get(key.key()),
+        }
+    }
+}
+
+impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
+    pub fn remove(&self, key: impl HashedKey<K>) -> Option<Self> {
+        let index = self.entry_index(&key);
+        let entry = match &self.entries[index] {
+            Entry::Empty => None,
+            Entry::KeyValue(key_value) => {
+                if key.key() == key_value.key() {
+                    Some(Entry::Empty)
+                } else {
+                    None
+                }
+            }
+            Entry::Hamt(hamt) => hamt.remove(key).map(Entry::from),
+            Entry::Bucket(bucket) => bucket.remove(key.key()).map(Entry::from),
+        }?;
+
+        Some(self.set_entry(index, entry))
     }
 
-    fn set_entry(&self, index: usize, entry: Entry<K, V>) -> Self {
+    fn set_entry(&self, index: usize, entry: impl Into<Entry<K, V>>) -> Self {
         let mut entries = self.entries.clone();
 
-        entries[index] = entry;
+        entries[index] = entry.into();
 
-        Hamt {
+        Self {
             level: self.level,
             entries,
         }
+    }
+
+    pub fn insert(&self, key: impl HashedKey<K> + IntoKey<K>, value: V) -> (Self, bool) {
+        let index = self.entry_index(&key);
+
+        match &self.entries[index] {
+            Entry::Empty => (
+                self.set_entry(index, KeyValue::new(key.into_key(), value)),
+                true,
+            ),
+            Entry::KeyValue(key_value) => {
+                if key.key() == key_value.key() {
+                    (
+                        self.set_entry(index, KeyValue::new(key.into_key(), value)),
+                        false,
+                    )
+                } else {
+                    (
+                        self.set_entry(
+                            index,
+                            if self.level < MAX_LEVEL {
+                                Entry::from(
+                                    Self::new(self.level + 1)
+                                        .insert(key_value.key().clone(), key_value.value().clone())
+                                        .0
+                                        .insert(key, value)
+                                        .0,
+                                )
+                            } else {
+                                Bucket::new(vec![
+                                    (key.into_key(), value),
+                                    (key_value.key().clone(), key_value.value().clone()),
+                                ])
+                                .into()
+                            },
+                        ),
+                        true,
+                    )
+                }
+            }
+            Entry::Hamt(hamt) => {
+                let (hamt, ok) = hamt.insert(key, value);
+                (self.set_entry(index, hamt), ok)
+            }
+            Entry::Bucket(bucket) => {
+                let (bucket, ok) = bucket.insert(key.into_key(), value);
+                (self.set_entry(index, bucket), ok)
+            }
+        }
+    }
+
+    pub fn first_rest(&self) -> Option<(&K, &V, Self)> {
+        for (index, entry) in self.entries.iter().enumerate() {
+            match entry {
+                Entry::Empty => {}
+                Entry::KeyValue(key_value) => {
+                    return Some((
+                        key_value.key(),
+                        key_value.value(),
+                        self.remove(key_value.key()).unwrap(),
+                    ))
+                }
+                Entry::Hamt(hamt) => {
+                    let (key, value, rest) = hamt.first_rest().unwrap();
+
+                    return Some((key, value, self.set_entry(index, rest)));
+                }
+                Entry::Bucket(bucket) => {
+                    let (key, value, rest) = bucket.first_rest().unwrap();
+
+                    return Some((key, value, self.set_entry(index, rest)));
+                }
+            }
+        }
+
+        None
+    }
+
+    fn is_singleton(&self) -> bool {
+        self.entries
+            .iter()
+            .map(|entry| match entry {
+                Entry::Empty => 0,
+                Entry::KeyValue(_) => 1,
+                _ => 2,
+            })
+            .sum::<usize>()
+            == 1
     }
 
     #[cfg(test)]
@@ -89,118 +222,6 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
             _ => true,
         })
     }
-}
-
-impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
-    pub fn insert(&self, key: K, value: V) -> (Self, bool) {
-        let index = self.entry_index(&key);
-
-        match &self.entries[index] {
-            Entry::Empty => (self.set_entry(index, Entry::KeyValue(key, value)), true),
-            Entry::KeyValue(other_key, other_value) => {
-                if &key == other_key {
-                    return (self.set_entry(index, Entry::KeyValue(key, value)), false);
-                }
-
-                (
-                    self.set_entry(
-                        index,
-                        if self.level < MAX_LEVEL {
-                            Hamt::new(self.level + 1)
-                                .insert(other_key.clone(), other_value.clone())
-                                .0
-                                .insert(key, value)
-                                .0
-                                .into()
-                        } else {
-                            Bucket::new(vec![
-                                (key, value),
-                                (other_key.clone(), other_value.clone()),
-                            ])
-                            .into()
-                        },
-                    ),
-                    true,
-                )
-            }
-            Entry::Hamt(hamt) => {
-                let (hamt, ok) = hamt.insert(key, value);
-                (self.set_entry(index, hamt.into()), ok)
-            }
-            Entry::Bucket(bucket) => {
-                let (bucket, ok) = bucket.insert(key, value);
-                (self.set_entry(index, bucket.into()), ok)
-            }
-        }
-    }
-
-    pub fn remove(&self, key: &K) -> Option<Self> {
-        let index = self.entry_index(key);
-        let entry = match &self.entries[index] {
-            Entry::Empty => None,
-            Entry::KeyValue(other_key, _) => {
-                if key == other_key {
-                    Some(Entry::Empty)
-                } else {
-                    None
-                }
-            }
-            Entry::Hamt(hamt) => hamt.remove(key).map(Entry::from),
-            Entry::Bucket(bucket) => bucket.remove(key).map(Entry::from),
-        }?;
-
-        Some(self.set_entry(index, entry))
-    }
-
-    pub fn get(&self, key: &K) -> Option<&V> {
-        match &self.entries[self.entry_index(key)] {
-            Entry::Empty => None,
-            Entry::KeyValue(other_key, value) => {
-                if key == other_key {
-                    Some(value)
-                } else {
-                    None
-                }
-            }
-            Entry::Hamt(hamt) => hamt.get(key),
-            Entry::Bucket(bucket) => bucket.get(key),
-        }
-    }
-
-    pub fn first_rest(&self) -> Option<(&K, &V, Self)> {
-        for (index, entry) in self.entries.iter().enumerate() {
-            match entry {
-                Entry::Empty => {}
-                Entry::KeyValue(key, value) => {
-                    return Some((key, value, self.remove(key).unwrap()))
-                }
-                Entry::Hamt(hamt) => {
-                    let (key, value, rest) = hamt.first_rest().unwrap();
-
-                    return Some((key, value, self.set_entry(index, rest.into())));
-                }
-                Entry::Bucket(bucket) => {
-                    let (key, value, rest) = bucket.first_rest().unwrap();
-
-                    return Some((key, value, self.set_entry(index, rest.into())));
-                }
-            }
-        }
-
-        None
-    }
-
-    fn is_singleton(&self) -> bool {
-        self.entries
-            .iter()
-            .map(|entry| match entry {
-                Entry::Empty => 0,
-                Entry::KeyValue(_, _) => 1,
-                _ => 2,
-            })
-            .sum::<usize>()
-            == 1
-    }
 
     #[cfg(test)]
     fn entry_count(&self) -> usize {
@@ -208,18 +229,12 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
             .iter()
             .map(|entry| match entry {
                 Entry::Empty => 0,
-                Entry::KeyValue(_, _) => 1,
+                Entry::KeyValue(_) => 1,
                 Entry::Hamt(hamt) => hamt.entry_count(),
                 Entry::Bucket(bucket) => bucket.entry_count(),
             })
             .sum()
     }
-}
-
-fn hash(key: &impl Hash) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    key.hash(&mut hasher);
-    hasher.finish()
 }
 
 #[derive(Debug)]
@@ -258,7 +273,7 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
                         self.0.push((NodeRef::Hamt(hamt), 0));
                         self.next()
                     }
-                    Entry::KeyValue(key, value) => Some((key, value)),
+                    Entry::KeyValue(key_value) => Some((key_value.key(), key_value.value())),
                     Entry::Bucket(bucket) => {
                         self.0.push((NodeRef::Bucket(bucket), 0));
                         self.next()
@@ -460,7 +475,7 @@ mod tests {
 
             hamt = hamt.insert(key, key).0;
 
-            let index = hash(&key) >> 60;
+            let index = HashedKey::hash(&key) >> 60;
 
             if set.contains(&index) {
                 break;

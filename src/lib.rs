@@ -7,6 +7,9 @@
 
 mod bucket;
 mod hamt;
+mod hashed_key;
+mod key_value;
 mod map;
+mod utilities;
 
 pub use map::Map;
