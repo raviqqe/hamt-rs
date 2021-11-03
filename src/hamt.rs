@@ -113,7 +113,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
 
         entries[index] = entry.into();
 
-        Hamt {
+        Self {
             level: self.level,
             entries,
         }
