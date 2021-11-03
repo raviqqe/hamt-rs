@@ -17,7 +17,7 @@ pub struct Map<K, V> {
 impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     /// Creates a new map.
     pub fn new() -> Self {
-        Map {
+        Self {
             size: 0,
             hamt: Hamt::new(0),
         }
@@ -38,7 +38,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
         let hash = hash_key(&key);
         let (hamt, ok) = self.hamt.insert((key, hash), value);
 
-        Map {
+        Self {
             size: self.size + (ok as usize),
             hamt,
         }
@@ -46,7 +46,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
 
     /// Removes a key and returns its corresponding value from a map if any.
     pub fn remove(&self, key: &K) -> Option<Self> {
-        self.hamt.remove((key, hash_key(key))).map(|hamt| Map {
+        self.hamt.remove((key, hash_key(key))).map(|hamt| Self {
             size: self.size - 1,
             hamt,
         })
@@ -79,7 +79,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
             (
                 key,
                 value,
-                Map {
+                Self {
                     size: self.size - 1,
                     hamt,
                 },
