@@ -1,6 +1,8 @@
-use crate::hashed_key::IntoKey;
-use crate::key_value::KeyValue;
-use crate::{bucket::Bucket, hashed_key::HashedKey};
+use crate::{
+    bucket::Bucket,
+    hashed_key::{HashedKey, IntoKey},
+    key_value::KeyValue,
+};
 use std::{hash::Hash, sync::Arc};
 
 const MAX_LEVEL: u8 = 64 / 5;
@@ -139,10 +141,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
                         if self.level < MAX_LEVEL {
                             Entry::from(
                                 Hamt::new(self.level + 1)
-                                    .insert(
-                                        key_value.key().clone().clone(),
-                                        key_value.value().clone().clone(),
-                                    )
+                                    .insert(key_value.key().clone(), key_value.value().clone())
                                     .0
                                     .insert(key, value)
                                     .0,
