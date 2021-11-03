@@ -18,13 +18,13 @@ enum Entry<K, V> {
 
 impl<K, V> Default for Entry<K, V> {
     fn default() -> Self {
-        Entry::Empty
+        Self::Empty
     }
 }
 
 impl<K: Hash, V> From<KeyValue<K, V>> for Entry<K, V> {
     fn from(key_value: KeyValue<K, V>) -> Self {
-        Entry::KeyValue(key_value)
+        Self::KeyValue(key_value)
     }
 }
 
@@ -33,9 +33,9 @@ impl<K: Clone + Hash + PartialEq, V: Clone> From<Hamt<K, V>> for Entry<K, V> {
         if hamt.is_singleton() {
             let (key, value) = hamt.into_iter().next().unwrap();
 
-            Entry::KeyValue(KeyValue::new(key.clone(), value.clone()))
+            Self::KeyValue(KeyValue::new(key.clone(), value.clone()))
         } else {
-            Entry::Hamt(hamt.into())
+            Self::Hamt(hamt.into())
         }
     }
 }
@@ -45,9 +45,9 @@ impl<K: Clone + Hash + PartialEq, V: Clone> From<Bucket<K, V>> for Entry<K, V> {
         if bucket.is_singleton() {
             let (key, value) = bucket.as_slice().iter().next().unwrap();
 
-            Entry::KeyValue(KeyValue::new(key.clone(), value.clone()))
+            Self::KeyValue(KeyValue::new(key.clone(), value.clone()))
         } else {
-            Entry::Bucket(bucket)
+            Self::Bucket(bucket)
         }
     }
 }
@@ -139,7 +139,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
                             index,
                             if self.level < MAX_LEVEL {
                                 Entry::from(
-                                    Hamt::new(self.level + 1)
+                                    Self::new(self.level + 1)
                                         .insert(key_value.key().clone(), key_value.value().clone())
                                         .0
                                         .insert(key, value)

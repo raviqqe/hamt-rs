@@ -57,7 +57,7 @@ impl<K: Clone + PartialEq, V: Clone> Bucket<K, V> {
                 entries[index] = (key, value);
 
                 (
-                    Bucket {
+                    Self {
                         entries: entries.into(),
                     },
                     false,
@@ -67,7 +67,7 @@ impl<K: Clone + PartialEq, V: Clone> Bucket<K, V> {
                 entries.push((key, value));
 
                 (
-                    Bucket {
+                    Self {
                         entries: entries.into(),
                     },
                     true,
@@ -82,7 +82,7 @@ impl<K: Clone + PartialEq, V: Clone> Bucket<K, V> {
 
             entries.remove(index);
 
-            Bucket {
+            Self {
                 entries: entries.into(),
             }
         })
@@ -100,7 +100,7 @@ impl<K: Clone + PartialEq, V: Clone> Bucket<K, V> {
         Some((
             &self.entries[0].0,
             &self.entries[0].1,
-            Bucket {
+            Self {
                 entries: entries.into(),
             },
         ))
