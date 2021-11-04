@@ -14,7 +14,7 @@ pub struct Map<K, V> {
     hamt: Hamt<K, V>,
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
+impl<K: Hash + PartialEq, V> Map<K, V> {
     /// Creates a new map.
     pub fn new() -> Self {
         Self {
@@ -32,7 +32,9 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     pub fn contains_key(&self, key: &K) -> bool {
         self.get(key).is_some()
     }
+}
 
+impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     /// Inserts a key-value pair into a map.
     pub fn insert(&self, key: K, value: V) -> Self {
         let hash = hash_key(&key);
@@ -94,8 +96,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Default for Map<K, V> {
     }
 }
 
-// TODO Remove Clone requirements.
-impl<K: Hash + PartialEq + Clone, V: Clone> Index<&K> for Map<K, V> {
+impl<K: Hash + PartialEq, V> Index<&K> for Map<K, V> {
     type Output = V;
 
     fn index(&self, key: &K) -> &V {
