@@ -89,6 +89,19 @@ impl<K: Hash + PartialEq, V> Hamt<K, V> {
     }
 }
 
+impl<K: Clone, V: Clone> Hamt<K, V> {
+    fn set_entry(&self, index: usize, entry: impl Into<Entry<K, V>>) -> Self {
+        let mut entries = self.entries.clone();
+
+        entries[index] = entry.into();
+
+        Self {
+            level: self.level,
+            entries,
+        }
+    }
+}
+
 impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
     pub fn remove(&self, key: impl HashedKey<K>) -> Option<Self> {
         let index = self.entry_index(&key);
@@ -106,17 +119,6 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
         }?;
 
         Some(self.set_entry(index, entry))
-    }
-
-    fn set_entry(&self, index: usize, entry: impl Into<Entry<K, V>>) -> Self {
-        let mut entries = self.entries.clone();
-
-        entries[index] = entry.into();
-
-        Self {
-            level: self.level,
-            entries,
-        }
     }
 
     pub fn insert(&self, key: impl HashedKey<K> + IntoKey<K>, value: V) -> (Self, bool) {
