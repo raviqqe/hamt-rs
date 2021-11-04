@@ -33,6 +33,14 @@ fn hamt_map_insert(bencher: &mut Bencher) {
     });
 }
 
+fn hamt_map_collect(bencher: &mut Bencher) {
+    let keys = generate_keys();
+
+    bencher.iter(|| {
+        let _ = keys.iter().map(|&key| (key, key)).collect::<Map<_, _>>();
+    });
+}
+
 fn hash_map_get(bencher: &mut Bencher) {
     let keys = generate_keys();
     let mut map = HashMap::new();
@@ -77,6 +85,7 @@ fn hash_map_insert_functional(bencher: &mut Bencher) {
 fn benchmark(criterion: &mut Criterion) {
     criterion.bench_function("hamt map get", hamt_map_get);
     criterion.bench_function("hamt map insert", hamt_map_insert);
+    criterion.bench_function("hamt map collect", hamt_map_collect);
 
     criterion.bench_function("hash map get", hash_map_get);
     criterion.bench_function("hash map insert", hash_map_insert);

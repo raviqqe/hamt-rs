@@ -2,7 +2,7 @@ use crate::{
     hamt::{Hamt, HamtIterator},
     utilities::hash_key,
 };
-use std::{hash::Hash, ops::Index};
+use std::{hash::Hash, iter::FromIterator, ops::Index};
 
 /// Map data structure of HAMT.
 ///
@@ -100,6 +100,19 @@ impl<K: Hash + PartialEq + Clone, V: Clone> Index<&K> for Map<K, V> {
 
     fn index(&self, key: &K) -> &V {
         self.get(key).expect("invalid key")
+    }
+}
+
+impl<K: Clone + Hash + PartialEq, V: Clone> FromIterator<(K, V)> for Map<K, V> {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iterator: T) -> Self {
+        let mut size = 0;
+        let mut hamt = Hamt::new(0);
+
+        for (key, value) in iterator {
+            size += hamt.insert_mut(key, value) as usize;
+        }
+
+        Self { size, hamt }
     }
 }
 
@@ -270,5 +283,58 @@ mod test {
 
         let map: Map<String, String> = Map::new();
         spawn(move || map);
+    }
+
+    mod from_iterator {
+        use super::*;
+
+        #[test]
+        fn collect_empty() {
+            assert_eq!(Map::<usize, usize>::new(), vec![].into_iter().collect());
+        }
+
+        #[test]
+        fn collect_one_element() {
+            assert_eq!(
+                Map::<usize, usize>::new().insert(0, 0),
+                vec![(0, 0)].into_iter().collect()
+            );
+        }
+
+        #[test]
+        fn collect_two_elements() {
+            assert_eq!(
+                Map::<usize, usize>::new().insert(0, 0).insert(1, 1),
+                vec![(0, 0), (1, 1)].into_iter().collect()
+            );
+        }
+
+        #[test]
+        fn collect_with_reversed_order() {
+            assert_eq!(
+                Map::<usize, usize>::new().insert(0, 0).insert(1, 1),
+                vec![(1, 1), (0, 0)].into_iter().collect()
+            );
+        }
+
+        #[test]
+        fn collect_duplicate_keys() {
+            assert_eq!(
+                Map::<usize, usize>::new().insert(0, 0),
+                vec![(0, 0), (0, 0)].into_iter().collect()
+            );
+        }
+
+        #[test]
+        fn collect_many_elements() {
+            let keys = (0..100).collect::<Vec<_>>();
+            let mut map = Map::<usize, usize>::new();
+
+            for &key in &keys {
+                map = map.insert(key, key);
+            }
+
+            assert_eq!(map, keys.into_iter().map(|key| (key, key)).collect());
+        }
     }
 }
