@@ -197,6 +197,36 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
         None
     }
 
+    fn insert_mut(&mut self, key: impl HashedKey<K> + IntoKey<K>, value: V) {
+        let index = self.entry_index(&key);
+
+        match &mut self.entries[index] {
+            Entry::Empty => self.entries[index] = KeyValue::new(key.into_key(), value).into(),
+            Entry::KeyValue(key_value) => {
+                self.entries[index] = if key.key() == key_value.key() {
+                    KeyValue::new(key.into_key(), value).into()
+                } else if self.level < MAX_LEVEL {
+                    Self::new(self.level + 1)
+                        .insert(key_value.key().clone(), key_value.value().clone())
+                        .0
+                        .insert(key, value)
+                        .0
+                        .into()
+                } else {
+                    Bucket::new(vec![
+                        (key.into_key(), value),
+                        (key_value.key().clone(), key_value.value().clone()),
+                    ])
+                    .into()
+                };
+            }
+            Entry::Hamt(hamt) => Arc::get_mut(hamt).unwrap().insert_mut(key, value),
+            Entry::Bucket(bucket) => {
+                self.entries[index] = bucket.insert(key.into_key(), value).0.into();
+            }
+        }
+    }
+
     fn is_singleton(&self) -> bool {
         self.entries
             .iter()
