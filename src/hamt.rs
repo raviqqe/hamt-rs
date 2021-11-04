@@ -3,7 +3,7 @@ use crate::{
     hashed_key::{HashedKey, IntoKey},
     key_value::KeyValue,
 };
-use std::{hash::Hash, iter::FromIterator, sync::Arc};
+use std::{hash::Hash, sync::Arc};
 
 const MAX_LEVEL: u8 = 64 / 5;
 const ENTRY_COUNT: usize = 32;
@@ -280,18 +280,6 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
                 Entry::Bucket(bucket) => bucket.entry_count(),
             })
             .sum()
-    }
-}
-
-impl<K: Clone + Hash + PartialEq, V: Clone> FromIterator<(K, V)> for Hamt<K, V> {
-    fn from_iter<T: IntoIterator<Item = (K, V)>>(iterator: T) -> Self {
-        let mut hamt = Self::new(0);
-
-        for (key, value) in iterator {
-            hamt.insert_mut(key, value);
-        }
-
-        hamt
     }
 }
 
