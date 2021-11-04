@@ -2,7 +2,7 @@ use crate::{
     hamt::{Hamt, HamtIterator},
     utilities::hash_key,
 };
-use std::{hash::Hash, iter::FromIterator, ops::Index};
+use std::{hash::Hash, ops::Index};
 
 /// Map data structure of HAMT.
 ///
@@ -290,14 +290,14 @@ mod test {
 
         #[test]
         fn collect_empty() {
-            assert_eq!(Map::<usize, usize>::new(), vec![].into_iter().collect());
+            assert_eq!(Map::<usize, usize>::new(), [].into_iter().collect());
         }
 
         #[test]
         fn collect_one_element() {
             assert_eq!(
                 Map::<usize, usize>::new().insert(0, 0),
-                vec![(0, 0)].into_iter().collect()
+                [(0, 0)].into_iter().collect()
             );
         }
 
@@ -305,7 +305,7 @@ mod test {
         fn collect_two_elements() {
             assert_eq!(
                 Map::<usize, usize>::new().insert(0, 0).insert(1, 1),
-                vec![(0, 0), (1, 1)].into_iter().collect()
+                [(0, 0), (1, 1)].into_iter().collect()
             );
         }
 
@@ -313,7 +313,7 @@ mod test {
         fn collect_with_reversed_order() {
             assert_eq!(
                 Map::<usize, usize>::new().insert(0, 0).insert(1, 1),
-                vec![(1, 1), (0, 0)].into_iter().collect()
+                [(1, 1), (0, 0)].into_iter().collect()
             );
         }
 
@@ -321,7 +321,7 @@ mod test {
         fn collect_duplicate_keys() {
             assert_eq!(
                 Map::<usize, usize>::new().insert(0, 0),
-                vec![(0, 0), (0, 0)].into_iter().collect()
+                [(0, 0), (0, 0)].into_iter().collect()
             );
         }
 
