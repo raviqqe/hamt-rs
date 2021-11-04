@@ -3,7 +3,7 @@ use crate::{
     hashed_key::{HashedKey, IntoKey},
     key_value::KeyValue,
 };
-use std::{hash::Hash, sync::Arc};
+use std::{hash::Hash, iter::FromIterator, sync::Arc};
 
 const MAX_LEVEL: u8 = 64 / 5;
 const ENTRY_COUNT: usize = 32;
@@ -197,32 +197,46 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
         None
     }
 
-    fn insert_mut(&mut self, key: impl HashedKey<K> + IntoKey<K>, value: V) {
+    pub fn insert_mut(&mut self, key: impl HashedKey<K> + IntoKey<K>, value: V) -> bool {
         let index = self.entry_index(&key);
 
         match &mut self.entries[index] {
-            Entry::Empty => self.entries[index] = KeyValue::new(key.into_key(), value).into(),
+            Entry::Empty => {
+                self.entries[index] = KeyValue::new(key.into_key(), value).into();
+                true
+            }
             Entry::KeyValue(key_value) => {
-                self.entries[index] = if key.key() == key_value.key() {
-                    KeyValue::new(key.into_key(), value).into()
+                let (entry, ok) = if key.key() == key_value.key() {
+                    (KeyValue::new(key.into_key(), value).into(), false)
                 } else if self.level < MAX_LEVEL {
-                    Self::new(self.level + 1)
-                        .insert(key_value.key().clone(), key_value.value().clone())
-                        .0
-                        .insert(key, value)
-                        .0
-                        .into()
+                    let mut hamt = Self::new(self.level + 1);
+
+                    hamt.insert_mut(key, value);
+                    hamt.insert_mut(key_value.key().clone(), key_value.value().clone());
+
+                    (hamt.into(), true)
                 } else {
-                    Bucket::new(vec![
-                        (key.into_key(), value),
-                        (key_value.key().clone(), key_value.value().clone()),
-                    ])
-                    .into()
+                    (
+                        Bucket::new(vec![
+                            (key.into_key(), value),
+                            (key_value.key().clone(), key_value.value().clone()),
+                        ])
+                        .into(),
+                        true,
+                    )
                 };
+
+                self.entries[index] = entry;
+
+                ok
             }
             Entry::Hamt(hamt) => Arc::get_mut(hamt).unwrap().insert_mut(key, value),
             Entry::Bucket(bucket) => {
-                self.entries[index] = bucket.insert(key.into_key(), value).0.into();
+                let (bucket, ok) = bucket.insert(key.into_key(), value);
+
+                self.entries[index] = bucket.into();
+
+                ok
             }
         }
     }
@@ -266,6 +280,18 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
                 Entry::Bucket(bucket) => bucket.entry_count(),
             })
             .sum()
+    }
+}
+
+impl<K: Clone + Hash + PartialEq, V: Clone> FromIterator<(K, V)> for Hamt<K, V> {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iterator: T) -> Self {
+        let mut hamt = Self::new(0);
+
+        for (key, value) in iterator {
+            hamt.insert_mut(key, value);
+        }
+
+        hamt
     }
 }
 
