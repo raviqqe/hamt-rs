@@ -324,5 +324,17 @@ mod test {
                 vec![(0, 0), (0, 0)].into_iter().collect()
             );
         }
+
+        #[test]
+        fn collect_many_elements() {
+            let keys = (0..100).collect::<Vec<_>>();
+            let mut map = Map::<usize, usize>::new();
+
+            for &key in &keys {
+                map = map.insert(key, key);
+            }
+
+            assert_eq!(map, keys.into_iter().map(|key| (key, key)).collect());
+        }
     }
 }
