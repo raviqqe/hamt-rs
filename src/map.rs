@@ -2,7 +2,7 @@ use crate::{
     hamt::{Hamt, HamtIterator},
     utilities::hash_key,
 };
-use std::{hash::Hash, iter::FromIterator, ops::Index};
+use std::{hash::Hash, ops::Index};
 
 /// Map data structure of HAMT.
 ///
