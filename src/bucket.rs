@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Borrow, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct Bucket<K, V> {
@@ -33,13 +33,21 @@ impl<K, V> Bucket<K, V> {
 }
 
 impl<K: PartialEq, V> Bucket<K, V> {
-    pub fn get(&self, key: &K) -> Option<&V> {
+    pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+        Q: PartialEq,
+    {
         self.find_index(key).map(|index| &self.entries[index].1)
     }
 
-    fn find_index(&self, key: &K) -> Option<usize> {
+    fn find_index<Q: ?Sized>(&self, key: &Q) -> Option<usize>
+    where
+        K: Borrow<Q>,
+        Q: PartialEq,
+    {
         for (index, (other_key, _)) in self.entries.iter().enumerate() {
-            if key == other_key {
+            if key == other_key.borrow() {
                 return Some(index);
             }
         }
