@@ -1,8 +1,5 @@
-use crate::{
-    hamt::{Hamt, HamtIterator},
-    utilities::hash_key,
-};
-use std::{hash::Hash, ops::Index};
+use crate::hamt::{Hamt, HamtIterator};
+use std::{borrow::Borrow, hash::Hash, ops::Index};
 
 /// Map data structure of HAMT.
 ///
@@ -14,7 +11,7 @@ pub struct Map<K, V> {
     hamt: Hamt<K, V>,
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
+impl<K: Hash + Eq, V> Map<K, V> {
     /// Creates a new map.
     pub fn new() -> Self {
         Self {
@@ -24,19 +21,26 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 
     /// Finds a key and its corresponding value in a map.
-    pub fn get(&self, key: &K) -> Option<&V> {
-        self.hamt.get((key, hash_key(key)))
+    pub fn get<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+    {
+        self.hamt.get(key)
     }
 
     /// Checks if a key is contained in a map.
-    pub fn contains_key(&self, key: &K) -> bool {
+    pub fn contains_key<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q>,
+    {
         self.get(key).is_some()
     }
+}
 
+impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
     /// Inserts a key-value pair into a map.
     pub fn insert(&self, key: K, value: V) -> Self {
-        let hash = hash_key(&key);
-        let (hamt, ok) = self.hamt.insert((key, hash), value);
+        let (hamt, ok) = self.hamt.insert(key, value);
 
         Self {
             size: self.size + (ok as usize),
@@ -45,8 +49,11 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 
     /// Removes a key and returns its corresponding value from a map if any.
-    pub fn remove(&self, key: &K) -> Option<Self> {
-        self.hamt.remove((key, hash_key(key))).map(|hamt| Self {
+    pub fn remove<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Option<Self>
+    where
+        K: Borrow<Q>,
+    {
+        self.hamt.remove(key).map(|hamt| Self {
             size: self.size - 1,
             hamt,
         })
@@ -88,14 +95,13 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> Default for Map<K, V> {
+impl<K: Clone + Hash + Eq, V: Clone> Default for Map<K, V> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-// TODO Remove Clone requirements.
-impl<K: Hash + PartialEq + Clone, V: Clone> Index<&K> for Map<K, V> {
+impl<K: Hash + Eq, V> Index<&K> for Map<K, V> {
     type Output = V;
 
     fn index(&self, key: &K) -> &V {
@@ -103,7 +109,7 @@ impl<K: Hash + PartialEq + Clone, V: Clone> Index<&K> for Map<K, V> {
     }
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> FromIterator<(K, V)> for Map<K, V> {
+impl<K: Clone + Hash + Eq, V: Clone> FromIterator<(K, V)> for Map<K, V> {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iterator: T) -> Self {
         let mut size = 0;
         let mut hamt = Hamt::new(0);
