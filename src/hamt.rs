@@ -24,7 +24,7 @@ impl<K: Hash, V> From<KeyValue<K, V>> for Entry<K, V> {
     }
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> From<Hamt<K, V>> for Entry<K, V> {
+impl<K: Clone + Hash + Eq, V: Clone> From<Hamt<K, V>> for Entry<K, V> {
     fn from(hamt: Hamt<K, V>) -> Self {
         if hamt.is_singleton() {
             for entry in hamt.entries {
@@ -40,7 +40,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> From<Hamt<K, V>> for Entry<K, V> {
     }
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> From<Bucket<K, V>> for Entry<K, V> {
+impl<K: Clone + Hash + Eq, V: Clone> From<Bucket<K, V>> for Entry<K, V> {
     fn from(bucket: Bucket<K, V>) -> Self {
         if bucket.is_singleton() {
             let (key, value) = bucket.as_slice().iter().next().unwrap();
@@ -73,15 +73,15 @@ impl<K, V> Hamt<K, V> {
     }
 }
 
-impl<K: Hash + PartialEq, V> Hamt<K, V> {
-    pub fn get<Q: Hash + PartialEq + ?Sized>(&self, key: &Q) -> Option<&V>
+impl<K: Hash + Eq, V> Hamt<K, V> {
+    pub fn get<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
     {
         self.get_with_hash(key, hash_key(key))
     }
 
-    fn get_with_hash<Q: Hash + PartialEq + ?Sized>(&self, key: &Q, hash: u64) -> Option<&V>
+    fn get_with_hash<Q: Hash + Eq + ?Sized>(&self, key: &Q, hash: u64) -> Option<&V>
     where
         K: Borrow<Q>,
     {
@@ -113,15 +113,15 @@ impl<K: Clone, V: Clone> Hamt<K, V> {
     }
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
-    pub fn remove<Q: Hash + PartialEq + ?Sized>(&self, key: &Q) -> Option<Self>
+impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
+    pub fn remove<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Option<Self>
     where
         K: Borrow<Q>,
     {
         self.remove_with_hash(key, hash_key(key))
     }
 
-    fn remove_with_hash<Q: Hash + PartialEq + ?Sized>(&self, key: &Q, hash: u64) -> Option<Self>
+    fn remove_with_hash<Q: Hash + Eq + ?Sized>(&self, key: &Q, hash: u64) -> Option<Self>
     where
         K: Borrow<Q>,
     {

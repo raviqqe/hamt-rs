@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, sync::Arc};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq)]
 pub struct Bucket<K, V> {
     entries: Arc<[(K, V)]>,
 }
@@ -32,15 +32,15 @@ impl<K, V> Bucket<K, V> {
     }
 }
 
-impl<K: PartialEq, V> Bucket<K, V> {
-    pub fn get<Q: PartialEq + ?Sized>(&self, key: &Q) -> Option<&V>
+impl<K: Eq, V> Bucket<K, V> {
+    pub fn get<Q: Eq + ?Sized>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
     {
         self.find_index(key).map(|index| &self.entries[index].1)
     }
 
-    fn find_index<Q: PartialEq + ?Sized>(&self, key: &Q) -> Option<usize>
+    fn find_index<Q: Eq + ?Sized>(&self, key: &Q) -> Option<usize>
     where
         K: Borrow<Q>,
     {
@@ -54,7 +54,7 @@ impl<K: PartialEq, V> Bucket<K, V> {
     }
 }
 
-impl<K: Clone + PartialEq, V: Clone> Bucket<K, V> {
+impl<K: Clone + Eq, V: Clone> Bucket<K, V> {
     pub fn insert(&self, key: K, value: V) -> (Self, bool) {
         let mut entries = self.entries.to_vec();
 
@@ -82,7 +82,7 @@ impl<K: Clone + PartialEq, V: Clone> Bucket<K, V> {
         }
     }
 
-    pub fn remove<Q: PartialEq + ?Sized>(&self, key: &Q) -> Option<Self>
+    pub fn remove<Q: Eq + ?Sized>(&self, key: &Q) -> Option<Self>
     where
         K: Borrow<Q>,
     {
@@ -127,8 +127,6 @@ impl<K: PartialEq, V: PartialEq> PartialEq for Bucket<K, V> {
         true
     }
 }
-
-impl<K: PartialEq, V: PartialEq> Eq for Bucket<K, V> {}
 
 #[cfg(test)]
 mod test {

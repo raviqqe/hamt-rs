@@ -11,7 +11,7 @@ pub struct Map<K, V> {
     hamt: Hamt<K, V>,
 }
 
-impl<K: Hash + PartialEq, V> Map<K, V> {
+impl<K: Hash + Eq, V> Map<K, V> {
     /// Creates a new map.
     pub fn new() -> Self {
         Self {
@@ -21,7 +21,7 @@ impl<K: Hash + PartialEq, V> Map<K, V> {
     }
 
     /// Finds a key and its corresponding value in a map.
-    pub fn get<Q: Hash + PartialEq + ?Sized>(&self, key: &Q) -> Option<&V>
+    pub fn get<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
     {
@@ -29,7 +29,7 @@ impl<K: Hash + PartialEq, V> Map<K, V> {
     }
 
     /// Checks if a key is contained in a map.
-    pub fn contains_key<Q: Hash + PartialEq + ?Sized>(&self, key: &Q) -> bool
+    pub fn contains_key<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> bool
     where
         K: Borrow<Q>,
     {
@@ -37,7 +37,7 @@ impl<K: Hash + PartialEq, V> Map<K, V> {
     }
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
+impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
     /// Inserts a key-value pair into a map.
     pub fn insert(&self, key: K, value: V) -> Self {
         let (hamt, ok) = self.hamt.insert(key, value);
@@ -49,7 +49,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 
     /// Removes a key and returns its corresponding value from a map if any.
-    pub fn remove<Q: Hash + PartialEq + ?Sized>(&self, key: &Q) -> Option<Self>
+    pub fn remove<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Option<Self>
     where
         K: Borrow<Q>,
     {
@@ -95,13 +95,13 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> Default for Map<K, V> {
+impl<K: Clone + Hash + Eq, V: Clone> Default for Map<K, V> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<K: Hash + PartialEq, V> Index<&K> for Map<K, V> {
+impl<K: Hash + Eq, V> Index<&K> for Map<K, V> {
     type Output = V;
 
     fn index(&self, key: &K) -> &V {
@@ -109,7 +109,7 @@ impl<K: Hash + PartialEq, V> Index<&K> for Map<K, V> {
     }
 }
 
-impl<K: Clone + Hash + PartialEq, V: Clone> FromIterator<(K, V)> for Map<K, V> {
+impl<K: Clone + Hash + Eq, V: Clone> FromIterator<(K, V)> for Map<K, V> {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iterator: T) -> Self {
         let mut size = 0;
         let mut hamt = Hamt::new(0);
