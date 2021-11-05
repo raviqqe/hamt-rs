@@ -27,9 +27,13 @@ impl<K: Hash, V> From<KeyValue<K, V>> for Entry<K, V> {
 impl<K: Clone + Hash + PartialEq, V: Clone> From<Hamt<K, V>> for Entry<K, V> {
     fn from(hamt: Hamt<K, V>) -> Self {
         if hamt.is_singleton() {
-            let (key, value) = hamt.into_iter().next().unwrap();
+            for entry in hamt.entries {
+                if matches!(&entry, Self::KeyValue(_)) {
+                    return entry;
+                }
+            }
 
-            Self::KeyValue(KeyValue::new(key.clone(), value.clone()))
+            unreachable!()
         } else {
             Self::Hamt(hamt.into())
         }
@@ -41,7 +45,8 @@ impl<K: Clone + Hash + PartialEq, V: Clone> From<Bucket<K, V>> for Entry<K, V> {
         if bucket.is_singleton() {
             let (key, value) = bucket.as_slice().iter().next().unwrap();
 
-            Self::KeyValue(KeyValue::new(key.clone(), value.clone()))
+            // TODO Cache hash.
+            Self::KeyValue(KeyValue::new(key.clone(), hash_key(key), value.clone()))
         } else {
             Self::Bucket(bucket)
         }
@@ -137,10 +142,13 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
         let index = self.entry_index(hash);
 
         match &self.entries[index] {
-            Entry::Empty => (self.set_entry(index, KeyValue::new(key, value)), true),
+            Entry::Empty => (self.set_entry(index, KeyValue::new(key, hash, value)), true),
             Entry::KeyValue(key_value) => {
                 if &key == key_value.key() {
-                    (self.set_entry(index, KeyValue::new(key, value)), false)
+                    (
+                        self.set_entry(index, KeyValue::new(key, hash, value)),
+                        false,
+                    )
                 } else {
                     (
                         self.set_entry(
@@ -150,7 +158,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
 
                                 hamt.insert_mut_with_hash(
                                     key_value.key().clone(),
-                                    hash_key(key_value.key()),
+                                    key_value.hash(),
                                     key_value.value().clone(),
                                 );
                                 hamt.insert_mut_with_hash(key, hash, value);
@@ -217,12 +225,12 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
 
         match &mut self.entries[index] {
             Entry::Empty => {
-                self.entries[index] = KeyValue::new(key, value).into();
+                self.entries[index] = KeyValue::new(key, hash, value).into();
                 true
             }
             Entry::KeyValue(key_value) => {
                 let (entry, ok) = if &key == key_value.key() {
-                    (KeyValue::new(key, value).into(), false)
+                    (KeyValue::new(key, hash, value).into(), false)
                 } else if self.level < MAX_LEVEL {
                     let mut hamt = Self::new(self.level + 1);
 
@@ -230,7 +238,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
                     // TODO Cache hash.
                     hamt.insert_mut_with_hash(
                         key_value.key().clone(),
-                        hash_key(key_value.key()),
+                        key_value.hash(),
                         key_value.value().clone(),
                     );
 
