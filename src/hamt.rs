@@ -140,13 +140,12 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
                         self.set_entry(
                             index,
                             if self.level < MAX_LEVEL {
-                                Entry::from(
-                                    Self::new(self.level + 1)
-                                        .insert(key_value.key().clone(), key_value.value().clone())
-                                        .0
-                                        .insert(key, value)
-                                        .0,
-                                )
+                                let mut hamt = Self::new(self.level + 1);
+
+                                hamt.insert_mut(key_value.key().clone(), key_value.value().clone());
+                                hamt.insert_mut(key, value);
+
+                                Entry::from(hamt)
                             } else {
                                 Bucket::new(vec![
                                     (key.into_key(), value),
