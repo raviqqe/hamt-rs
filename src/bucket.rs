@@ -47,7 +47,7 @@ impl<K: PartialEq, V> Bucket<K, V> {
         Q: PartialEq,
     {
         for (index, (other_key, _)) in self.entries.iter().enumerate() {
-            if key == other_key.borrow() {
+            if key == &other_key {
                 return Some(index);
             }
         }
