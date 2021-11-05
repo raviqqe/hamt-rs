@@ -1,8 +1,4 @@
-use crate::{
-    bucket::Bucket,
-    hashed_key::{HashedKey, IntoKey},
-    key_value::KeyValue,
-};
+use crate::{bucket::Bucket, key_value::KeyValue, utilities::hash_key};
 use std::{hash::Hash, sync::Arc};
 
 const MAX_LEVEL: u8 = 64 / 5;
@@ -67,24 +63,28 @@ impl<K, V> Hamt<K, V> {
         }
     }
 
-    fn entry_index(&self, key: &impl HashedKey<K>) -> usize {
-        ((key.hash() >> (self.level * 5)) & 0b11111) as usize
+    fn entry_index(&self, hash: u64) -> usize {
+        ((hash >> (self.level * 5)) & 0b11111) as usize
     }
 }
 
 impl<K: Hash + PartialEq, V> Hamt<K, V> {
-    pub fn get(&self, key: impl HashedKey<K>) -> Option<&V> {
-        match &self.entries[self.entry_index(&key)] {
+    pub fn get(&self, key: &K) -> Option<&V> {
+        self.get_with_hash(key, hash_key(key))
+    }
+
+    fn get_with_hash(&self, key: &K, hash: u64) -> Option<&V> {
+        match &self.entries[self.entry_index(hash)] {
             Entry::Empty => None,
             Entry::KeyValue(key_value) => {
-                if key.key() == key_value.key() {
+                if key == key_value.key() {
                     Some(key_value.value())
                 } else {
                     None
                 }
             }
-            Entry::Hamt(hamt) => hamt.get(key),
-            Entry::Bucket(bucket) => bucket.get(key.key()),
+            Entry::Hamt(hamt) => hamt.get_with_hash(key, hash),
+            Entry::Bucket(bucket) => bucket.get(key),
         }
     }
 }
@@ -103,38 +103,44 @@ impl<K: Clone, V: Clone> Hamt<K, V> {
 }
 
 impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
-    pub fn remove(&self, key: impl HashedKey<K>) -> Option<Self> {
-        let index = self.entry_index(&key);
-        let entry = match &self.entries[index] {
-            Entry::Empty => None,
-            Entry::KeyValue(key_value) => {
-                if key.key() == key_value.key() {
-                    Some(Entry::Empty)
-                } else {
-                    None
-                }
-            }
-            Entry::Hamt(hamt) => hamt.remove(key).map(Entry::from),
-            Entry::Bucket(bucket) => bucket.remove(key.key()).map(Entry::from),
-        }?;
-
-        Some(self.set_entry(index, entry))
+    pub fn remove(&self, key: &K) -> Option<Self> {
+        self.remove_with_hash(key, hash_key(key))
     }
 
-    pub fn insert(&self, key: impl HashedKey<K> + IntoKey<K>, value: V) -> (Self, bool) {
-        let index = self.entry_index(&key);
+    fn remove_with_hash(&self, key: &K, hash: u64) -> Option<Self> {
+        let index = self.entry_index(hash);
+
+        Some(self.set_entry(
+            index,
+            match &self.entries[index] {
+                Entry::Empty => None,
+                Entry::KeyValue(key_value) => {
+                    if key == key_value.key() {
+                        Some(Entry::Empty)
+                    } else {
+                        None
+                    }
+                }
+                Entry::Hamt(hamt) => hamt.remove_with_hash(key, hash).map(Entry::from),
+                Entry::Bucket(bucket) => bucket.remove(key).map(Entry::from),
+            }?,
+        ))
+    }
+
+    pub fn insert(&self, key: K, value: V) -> (Self, bool) {
+        let hash = hash_key(&key);
+
+        self.insert_with_hash(key, hash, value)
+    }
+
+    fn insert_with_hash(&self, key: K, hash: u64, value: V) -> (Self, bool) {
+        let index = self.entry_index(hash);
 
         match &self.entries[index] {
-            Entry::Empty => (
-                self.set_entry(index, KeyValue::new(key.into_key(), value)),
-                true,
-            ),
+            Entry::Empty => (self.set_entry(index, KeyValue::new(key, value)), true),
             Entry::KeyValue(key_value) => {
-                if key.key() == key_value.key() {
-                    (
-                        self.set_entry(index, KeyValue::new(key.into_key(), value)),
-                        false,
-                    )
+                if &key == key_value.key() {
+                    (self.set_entry(index, KeyValue::new(key, value)), false)
                 } else {
                     (
                         self.set_entry(
@@ -142,13 +148,17 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
                             if self.level < MAX_LEVEL {
                                 let mut hamt = Self::new(self.level + 1);
 
-                                hamt.insert_mut(key_value.key().clone(), key_value.value().clone());
-                                hamt.insert_mut(key, value);
+                                hamt.insert_mut_with_hash(
+                                    key_value.key().clone(),
+                                    hash_key(key_value.key()),
+                                    key_value.value().clone(),
+                                );
+                                hamt.insert_mut_with_hash(key, hash, value);
 
                                 Entry::from(hamt)
                             } else {
                                 Bucket::new(vec![
-                                    (key.into_key(), value),
+                                    (key, value),
                                     (key_value.key().clone(), key_value.value().clone()),
                                 ])
                                 .into()
@@ -159,11 +169,11 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
                 }
             }
             Entry::Hamt(hamt) => {
-                let (hamt, ok) = hamt.insert(key, value);
+                let (hamt, ok) = hamt.insert_with_hash(key, hash, value);
                 (self.set_entry(index, hamt), ok)
             }
             Entry::Bucket(bucket) => {
-                let (bucket, ok) = bucket.insert(key.into_key(), value);
+                let (bucket, ok) = bucket.insert(key, value);
                 (self.set_entry(index, bucket), ok)
             }
         }
@@ -196,28 +206,39 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
         None
     }
 
-    pub fn insert_mut(&mut self, key: impl HashedKey<K> + IntoKey<K>, value: V) -> bool {
-        let index = self.entry_index(&key);
+    pub fn insert_mut(&mut self, key: K, value: V) -> bool {
+        let hash = hash_key(&key);
+
+        self.insert_mut_with_hash(key, hash, value)
+    }
+
+    fn insert_mut_with_hash(&mut self, key: K, hash: u64, value: V) -> bool {
+        let index = self.entry_index(hash);
 
         match &mut self.entries[index] {
             Entry::Empty => {
-                self.entries[index] = KeyValue::new(key.into_key(), value).into();
+                self.entries[index] = KeyValue::new(key, value).into();
                 true
             }
             Entry::KeyValue(key_value) => {
-                let (entry, ok) = if key.key() == key_value.key() {
-                    (KeyValue::new(key.into_key(), value).into(), false)
+                let (entry, ok) = if &key == key_value.key() {
+                    (KeyValue::new(key, value).into(), false)
                 } else if self.level < MAX_LEVEL {
                     let mut hamt = Self::new(self.level + 1);
 
-                    hamt.insert_mut(key, value);
-                    hamt.insert_mut(key_value.key().clone(), key_value.value().clone());
+                    hamt.insert_mut_with_hash(key, hash, value);
+                    // TODO Cache hash.
+                    hamt.insert_mut_with_hash(
+                        key_value.key().clone(),
+                        hash_key(key_value.key()),
+                        key_value.value().clone(),
+                    );
 
                     (hamt.into(), true)
                 } else {
                     (
                         Bucket::new(vec![
-                            (key.into_key(), value),
+                            (key, value),
                             (key_value.key().clone(), key_value.value().clone()),
                         ])
                         .into(),
@@ -229,9 +250,11 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
 
                 ok
             }
-            Entry::Hamt(hamt) => Arc::get_mut(hamt).unwrap().insert_mut(key, value),
+            Entry::Hamt(hamt) => Arc::get_mut(hamt)
+                .unwrap()
+                .insert_mut_with_hash(key, hash, value),
             Entry::Bucket(bucket) => {
-                let (bucket, ok) = bucket.insert(key.into_key(), value);
+                let (bucket, ok) = bucket.insert(key, value);
 
                 self.entries[index] = bucket.into();
 
@@ -520,7 +543,7 @@ mod tests {
 
             hamt = hamt.insert(key, key).0;
 
-            let index = HashedKey::hash(&key) >> 60;
+            let index = hash_key(&key) >> 60;
 
             if set.contains(&index) {
                 break;
