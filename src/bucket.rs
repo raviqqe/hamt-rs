@@ -33,18 +33,16 @@ impl<K, V> Bucket<K, V> {
 }
 
 impl<K: PartialEq, V> Bucket<K, V> {
-    pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
+    pub fn get<Q: PartialEq + ?Sized>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
-        Q: PartialEq,
     {
         self.find_index(key).map(|index| &self.entries[index].1)
     }
 
-    fn find_index<Q: ?Sized>(&self, key: &Q) -> Option<usize>
+    fn find_index<Q: PartialEq + ?Sized>(&self, key: &Q) -> Option<usize>
     where
         K: Borrow<Q>,
-        Q: PartialEq,
     {
         for (index, (other_key, _)) in self.entries.iter().enumerate() {
             if key == other_key.borrow() {
@@ -84,7 +82,10 @@ impl<K: Clone + PartialEq, V: Clone> Bucket<K, V> {
         }
     }
 
-    pub fn remove(&self, key: &K) -> Option<Self> {
+    pub fn remove<Q: PartialEq + ?Sized>(&self, key: &Q) -> Option<Self>
+    where
+        K: Borrow<Q>,
+    {
         self.find_index(key).map(|index| {
             let mut entries = self.entries.to_vec();
 

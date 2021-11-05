@@ -1,5 +1,5 @@
 use crate::hamt::{Hamt, HamtIterator};
-use std::{hash::Hash, ops::Index};
+use std::{borrow::Borrow, hash::Hash, ops::Index};
 
 /// Map data structure of HAMT.
 ///
@@ -21,12 +21,18 @@ impl<K: Hash + PartialEq, V> Map<K, V> {
     }
 
     /// Finds a key and its corresponding value in a map.
-    pub fn get(&self, key: &K) -> Option<&V> {
+    pub fn get<Q: Hash + PartialEq + ?Sized>(&self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+    {
         self.hamt.get(key)
     }
 
     /// Checks if a key is contained in a map.
-    pub fn contains_key(&self, key: &K) -> bool {
+    pub fn contains_key<Q: Hash + PartialEq + ?Sized>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q>,
+    {
         self.get(key).is_some()
     }
 }
@@ -43,7 +49,10 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Map<K, V> {
     }
 
     /// Removes a key and returns its corresponding value from a map if any.
-    pub fn remove(&self, key: &K) -> Option<Self> {
+    pub fn remove<Q: Hash + PartialEq + ?Sized>(&self, key: &Q) -> Option<Self>
+    where
+        K: Borrow<Q>,
+    {
         self.hamt.remove(key).map(|hamt| Self {
             size: self.size - 1,
             hamt,

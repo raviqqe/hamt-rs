@@ -1,5 +1,5 @@
 use crate::{bucket::Bucket, key_value::KeyValue, utilities::hash_key};
-use std::{hash::Hash, sync::Arc};
+use std::{borrow::Borrow, hash::Hash, sync::Arc};
 
 const MAX_LEVEL: u8 = 64 / 5;
 const ENTRY_COUNT: usize = 32;
@@ -74,15 +74,21 @@ impl<K, V> Hamt<K, V> {
 }
 
 impl<K: Hash + PartialEq, V> Hamt<K, V> {
-    pub fn get(&self, key: &K) -> Option<&V> {
+    pub fn get<Q: Hash + PartialEq + ?Sized>(&self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+    {
         self.get_with_hash(key, hash_key(key))
     }
 
-    fn get_with_hash(&self, key: &K, hash: u64) -> Option<&V> {
+    fn get_with_hash<Q: Hash + PartialEq + ?Sized>(&self, key: &Q, hash: u64) -> Option<&V>
+    where
+        K: Borrow<Q>,
+    {
         match &self.entries[self.entry_index(hash)] {
             Entry::Empty => None,
             Entry::KeyValue(key_value) => {
-                if key == key_value.key() {
+                if key == key_value.key().borrow() {
                     Some(key_value.value())
                 } else {
                     None
@@ -108,11 +114,17 @@ impl<K: Clone, V: Clone> Hamt<K, V> {
 }
 
 impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
-    pub fn remove(&self, key: &K) -> Option<Self> {
+    pub fn remove<Q: Hash + PartialEq + ?Sized>(&self, key: &Q) -> Option<Self>
+    where
+        K: Borrow<Q>,
+    {
         self.remove_with_hash(key, hash_key(key))
     }
 
-    fn remove_with_hash(&self, key: &K, hash: u64) -> Option<Self> {
+    fn remove_with_hash<Q: Hash + PartialEq + ?Sized>(&self, key: &Q, hash: u64) -> Option<Self>
+    where
+        K: Borrow<Q>,
+    {
         let index = self.entry_index(hash);
 
         Some(self.set_entry(
@@ -120,7 +132,7 @@ impl<K: Clone + Hash + PartialEq, V: Clone> Hamt<K, V> {
             match &self.entries[index] {
                 Entry::Empty => None,
                 Entry::KeyValue(key_value) => {
-                    if key == key_value.key() {
+                    if key == key_value.key().borrow() {
                         Some(Entry::Empty)
                     } else {
                         None
