@@ -313,6 +313,14 @@ mod test {
         );
     }
 
+    #[test]
+    fn index() {
+        assert_eq!(
+            Map::<String, usize>::new().insert("foo".to_string(), 42)["foo"],
+            42,
+        );
+    }
+
     mod from_iterator {
         use super::*;
 
