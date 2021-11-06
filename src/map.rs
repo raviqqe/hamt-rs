@@ -59,6 +59,17 @@ impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
         })
     }
 
+    /// Extends a map with an iterator of key-value pairs.
+    pub fn extend(&self, iterator: impl IntoIterator<Item = (K, V)>) -> Self {
+        let mut map = self.clone();
+
+        for (key, value) in iterator {
+            map = map.insert(key, value);
+        }
+
+        map
+    }
+
     /// Returns a size of a map.
     pub fn len(&self) -> usize {
         self.size
@@ -289,6 +300,14 @@ mod test {
 
         let map: Map<String, String> = Map::new();
         spawn(move || map);
+    }
+
+    #[test]
+    fn extend() {
+        assert_eq!(
+            Map::<usize, usize>::new().insert(0, 0),
+            Map::new().extend([(0, 0)])
+        );
     }
 
     mod from_iterator {
