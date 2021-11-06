@@ -112,10 +112,13 @@ impl<K: Clone + Hash + Eq, V: Clone> Default for Map<K, V> {
     }
 }
 
-impl<K: Hash + Eq, V> Index<&K> for Map<K, V> {
+impl<Q: Hash + Eq + ?Sized, K: Hash + Eq, V> Index<&Q> for Map<K, V>
+where
+    K: Borrow<Q>,
+{
     type Output = V;
 
-    fn index(&self, key: &K) -> &V {
+    fn index(&self, key: &Q) -> &V {
         self.get(key).expect("invalid key")
     }
 }
