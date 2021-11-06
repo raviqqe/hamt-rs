@@ -302,6 +302,14 @@ mod test {
         spawn(move || map);
     }
 
+    #[test]
+    fn extend() {
+        assert_eq!(
+            Map::<usize, usize>::new().insert(0, 0),
+            Map::new().extend([(0, 0)])
+        );
+    }
+
     mod from_iterator {
         use super::*;
 
