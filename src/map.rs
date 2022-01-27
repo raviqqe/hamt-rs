@@ -1,5 +1,5 @@
 use crate::hamt::{Hamt, HamtIterator};
-use std::{borrow::Borrow, hash::Hash, ops::Index};
+use std::{borrow::Borrow, hash::Hash, ops::Index, sync::Arc};
 
 /// Map data structure of HAMT.
 ///
@@ -8,7 +8,7 @@ use std::{borrow::Borrow, hash::Hash, ops::Index};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Map<K, V> {
     size: usize,
-    hamt: Hamt<K, V>,
+    hamt: Arc<Hamt<K, V>>,
 }
 
 impl<K: Hash + Eq, V> Map<K, V> {
@@ -16,7 +16,7 @@ impl<K: Hash + Eq, V> Map<K, V> {
     pub fn new() -> Self {
         Self {
             size: 0,
-            hamt: Hamt::new(0),
+            hamt: Hamt::new(0).into(),
         }
     }
 
@@ -44,7 +44,7 @@ impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
 
         Self {
             size: self.size + (ok as usize),
-            hamt,
+            hamt: hamt.into(),
         }
     }
 
@@ -55,7 +55,7 @@ impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
     {
         self.hamt.remove(key).map(|hamt| Self {
             size: self.size - 1,
-            hamt,
+            hamt: hamt.into(),
         })
     }
 
@@ -99,7 +99,7 @@ impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
                 value,
                 Self {
                     size: self.size - 1,
-                    hamt,
+                    hamt: hamt.into(),
                 },
             )
         })
@@ -132,7 +132,10 @@ impl<K: Clone + Hash + Eq, V: Clone> FromIterator<(K, V)> for Map<K, V> {
             size += hamt.insert_mut(key, value) as usize;
         }
 
-        Self { size, hamt }
+        Self {
+            size,
+            hamt: hamt.into(),
+        }
     }
 }
 
