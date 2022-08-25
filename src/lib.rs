@@ -5,7 +5,6 @@
 //! widely by functional programming languages like Scala and Clojure to
 //! implement immutable and memory-efficient associative arrays and sets.
 
-mod bucket;
 mod hamt;
 mod key_value;
 mod map;
