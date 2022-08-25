@@ -49,14 +49,18 @@ impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
     }
 
     /// Removes a key and returns its corresponding value from a map if any.
-    pub fn remove<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Option<Self>
+    pub fn remove<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Self
     where
         K: Borrow<Q>,
     {
-        self.hamt.remove(key).map(|hamt| Self {
-            size: self.size - 1,
-            hamt: hamt.into(),
-        })
+        if let Some(hamt) = self.hamt.remove(key) {
+            Self {
+                size: self.size - 1,
+                hamt: hamt.into(),
+            }
+        } else {
+            self.clone()
+        }
     }
 
     /// Extends a map with an iterator of key-value pairs.
@@ -206,17 +210,14 @@ mod test {
     fn remove() {
         let map = Map::new();
 
-        assert_eq!(map.insert(0, 0).remove(&0), Some(map.clone()));
-        assert_eq!(map.insert(0, 0).remove(&1), None);
+        assert_eq!(map.insert(0, 0).remove(&0), map.clone());
+        assert_eq!(map.insert(0, 0).remove(&1), map.insert(0, 0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).remove(&0), map.insert(1, 0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).remove(&1), map.insert(0, 0));
         assert_eq!(
-            map.insert(0, 0).insert(1, 0).remove(&0),
-            Some(map.insert(1, 0))
+            map.insert(0, 0).insert(1, 0).remove(&2),
+            map.insert(0, 0).insert(1, 0)
         );
-        assert_eq!(
-            map.insert(0, 0).insert(1, 0).remove(&1),
-            Some(map.insert(0, 0))
-        );
-        assert_eq!(map.insert(0, 0).insert(1, 0).remove(&2), None);
     }
 
     #[test]
@@ -234,7 +235,7 @@ mod test {
                 assert_eq!(map.len(), if found { size } else { size + 1 });
                 assert_eq!(map.get(&key), Some(&key));
             } else {
-                map = map.remove(&key).unwrap_or(map);
+                map = map.remove(&key);
 
                 assert_eq!(map.len(), if found { size - 1 } else { size });
                 assert_eq!(map.get(&key), None);
@@ -291,7 +292,7 @@ mod test {
                 }
 
                 for key in &deleted_keys {
-                    *map = map.remove(key).unwrap_or_else(|| map.clone());
+                    *map = map.remove(key);
                 }
             }
 
