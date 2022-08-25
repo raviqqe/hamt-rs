@@ -48,7 +48,7 @@ impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
         }
     }
 
-    /// Removes a key and returns its corresponding value from a map if any.
+    /// Removes a key from a map if any.
     pub fn remove<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Self
     where
         K: Borrow<Q>,

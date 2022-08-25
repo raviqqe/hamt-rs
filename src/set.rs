@@ -30,7 +30,7 @@ impl<T: Hash + Eq> Set<T> {
 }
 
 impl<T: Clone + Hash + Eq> Set<T> {
-    /// Inserts a key-value pair into a set.
+    /// Inserts a value into a set.
     pub fn insert(&self, value: T) -> Self {
         let (hamt, ok) = self.hamt.insert(value, ());
 
@@ -40,7 +40,7 @@ impl<T: Clone + Hash + Eq> Set<T> {
         }
     }
 
-    /// Removes a key and returns its corresponding value from a set if any.
+    /// Removes a value from a set if any.
     pub fn remove<Q: Hash + Eq + ?Sized>(&self, value: &Q) -> Self
     where
         T: Borrow<Q>,
@@ -55,7 +55,7 @@ impl<T: Clone + Hash + Eq> Set<T> {
         }
     }
 
-    /// Extends a set with an iterator of key-value pairs.
+    /// Extends a set with an iterator of values.
     pub fn extend(&self, iterator: impl IntoIterator<Item = T>) -> Self {
         let mut set = self.clone();
 
