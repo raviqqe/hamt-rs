@@ -393,7 +393,7 @@ mod tests {
     use rand::{random, seq::SliceRandom, thread_rng};
     use std::collections::HashMap;
 
-    const NUM_ITERATIONS: usize = 1 << 12;
+    const ITERATION_COUNT: usize = 1 << 12;
 
     #[test]
     fn new() {
@@ -426,7 +426,7 @@ mod tests {
     fn insert_many_in_order() {
         let mut hamt = Hamt::new();
 
-        for index in 0..NUM_ITERATIONS {
+        for index in 0..ITERATION_COUNT {
             let (other, ok) = hamt.insert(index, index);
             hamt = other;
             assert!(ok);
@@ -438,7 +438,7 @@ mod tests {
     fn insert_many_at_random() {
         let mut hamt: Hamt<usize, usize> = Hamt::new();
 
-        for index in 0..NUM_ITERATIONS {
+        for index in 0..ITERATION_COUNT {
             let key = random();
             hamt = hamt.insert(key, key).0;
             assert_eq!(hamt.entry_count(), index + 1);
@@ -466,7 +466,7 @@ mod tests {
     fn insert_remove_many() {
         let mut hamt: Hamt<i16, i16> = Hamt::new();
 
-        for _ in 0..NUM_ITERATIONS {
+        for _ in 0..ITERATION_COUNT {
             let key = random();
             let size = hamt.entry_count();
             let found = hamt.get(&key).is_some();
@@ -504,7 +504,7 @@ mod tests {
     fn first_rest() {
         let mut hamt: Hamt<i16, i16> = Hamt::new();
 
-        for _ in 0..NUM_ITERATIONS {
+        for _ in 0..ITERATION_COUNT {
             let key = random();
             hamt = hamt.insert(key, key).0;
 
@@ -538,8 +538,8 @@ mod tests {
     fn equality() {
         for _ in 0..8 {
             let mut hamts: [Hamt<i16, i16>; 2] = [Hamt::new(), Hamt::new()];
-            let mut inserted_keys: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
-            let mut deleted_keys: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
+            let mut inserted_keys: Vec<i16> = (0..ITERATION_COUNT).map(|_| random()).collect();
+            let mut deleted_keys: Vec<i16> = (0..ITERATION_COUNT).map(|_| random()).collect();
 
             for hamt in hamts.iter_mut() {
                 inserted_keys.shuffle(&mut thread_rng());
