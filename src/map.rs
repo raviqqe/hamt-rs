@@ -48,7 +48,7 @@ impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
         }
     }
 
-    /// Removes a key and returns its corresponding value from a map if any.
+    /// Removes a key from a map if any.
     pub fn remove<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Self
     where
         K: Borrow<Q>,
@@ -210,7 +210,7 @@ mod test {
     fn remove() {
         let map = Map::new();
 
-        assert_eq!(map.insert(0, 0).remove(&0), map.clone());
+        assert_eq!(map.insert(0, 0).remove(&0), map);
         assert_eq!(map.insert(0, 0).remove(&1), map.insert(0, 0));
         assert_eq!(map.insert(0, 0).insert(1, 0).remove(&0), map.insert(1, 0));
         assert_eq!(map.insert(0, 0).insert(1, 0).remove(&1), map.insert(0, 0));

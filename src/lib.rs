@@ -8,6 +8,8 @@
 mod hamt;
 mod key_value;
 mod map;
+mod set;
 mod utilities;
 
 pub use map::Map;
+pub use set::Set;
