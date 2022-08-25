@@ -1,7 +1,7 @@
 use crate::{key_value::KeyValue, utilities::hash_key};
 use std::{borrow::Borrow, hash::Hash, sync::Arc};
 
-const MAX_LEVEL: usize = 64 / 5; // exclusive
+const MAX_LEVEL: usize = 64 / 5 - 1; // inclusive
 const ENTRY_COUNT: usize = 32;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -55,6 +55,14 @@ impl<K, V> Hamt<K, V> {
     fn entry_index(&self, hash: u64, level: usize) -> usize {
         ((hash >> (level * 5)) & 0b11111) as usize
     }
+
+    fn increment_level(level: usize, layer: usize) -> (usize, usize) {
+        if level < MAX_LEVEL {
+            (level + 1, layer)
+        } else {
+            (0, layer + 1)
+        }
+    }
 }
 
 impl<K: Hash + Eq, V> Hamt<K, V> {
@@ -85,11 +93,9 @@ impl<K: Hash + Eq, V> Hamt<K, V> {
                 }
             }
             Entry::Hamt(hamt) => {
-                let (level, layer) = if level < MAX_LEVEL {
-                    (level + 1, layer)
-                } else {
-                };
-                hamt.get_with_hash(key, hash, level + 1, layer)
+                let (level, layer) = Self::increment_level(level, layer);
+
+                hamt.get_with_hash(key, hash, level, layer)
             }
         }
     }
@@ -125,28 +131,31 @@ impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
     {
         let index = self.entry_index(hash, level);
 
-        Some(
-            self.set_entry(
-                index,
-                match &self.entries[index] {
-                    Entry::Empty => None,
-                    Entry::KeyValue(key_value) => {
-                        if key == key_value.key().borrow() {
-                            Some(Entry::Empty)
-                        } else {
-                            None
-                        }
+        Some(self.set_entry(
+            index,
+            match &self.entries[index] {
+                Entry::Empty => None,
+                Entry::KeyValue(key_value) => {
+                    if key == key_value.key().borrow() {
+                        Some(Entry::Empty)
+                    } else {
+                        None
                     }
-                    Entry::Hamt(hamt) => hamt
-                        .remove_with_hash(key, hash, level, layer)
-                        .map(Entry::from),
-                }?,
-            ),
-        )
+                }
+                Entry::Hamt(hamt) => {
+                    let (level, layer) = Self::increment_level(level, layer);
+
+                    hamt.remove_with_hash(key, hash, level, layer)
+                        .map(Entry::from)
+                }
+            }?,
+        ))
     }
 
     pub fn insert(&self, key: K, value: V) -> (Self, bool) {
-        self.insert_with_hash(key, hash_key(&key, 0), value, 0, 0)
+        let hash = hash_key(&key, 0);
+
+        self.insert_with_hash(key, hash, value, 0, 0)
     }
 
     fn insert_with_hash(
@@ -165,58 +174,50 @@ impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
                 if &key == key_value.key() {
                     (self.set_entry(index, KeyValue::new(key, value)), false)
                 } else {
-                    (
-                        self.set_entry(
-                            index,
-                            if level < MAX_LEVEL {
-                                let level = level + 1;
-                                let mut hamt = Self::new();
+                    let (level, layer) = Self::increment_level(level, layer);
 
-                                hamt.insert_mut_with_hash(
-                                    key_value.key().clone(),
-                                    hash_key(key_value.key(), layer),
-                                    key_value.value().clone(),
-                                    level,
-                                    layer,
-                                );
-                                hamt.insert_mut_with_hash(key, hash, value, level, layer);
+                    let mut hamt = Self::new();
 
-                                Entry::from(hamt)
-                            } else {
-                                Bucket::new(vec![
-                                    (key, value),
-                                    (key_value.key().clone(), key_value.value().clone()),
-                                ])
-                                .into()
-                            },
-                        ),
-                        true,
-                    )
+                    hamt.insert_mut_with_hash(
+                        key_value.key().clone(),
+                        hash_key(key_value.key(), layer),
+                        key_value.value().clone(),
+                        level,
+                        layer,
+                    );
+                    hamt.insert_mut_with_hash(key, hash, value, level, layer);
+
+                    (self.set_entry(index, hamt), true)
                 }
             }
             Entry::Hamt(hamt) => {
+                let (level, layer) = Self::increment_level(level, layer);
+
                 let (hamt, ok) = hamt.insert_with_hash(key, hash, value, level, layer);
+
                 (self.set_entry(index, hamt), ok)
             }
         }
     }
 
     pub fn first_rest(&self) -> Option<(&K, &V, Self)> {
-        for (index, entry) in self.entries.iter().enumerate() {
+        self.first_entry().map(|key_value| {
+            (
+                key_value.key(),
+                key_value.value(),
+                self.remove(key_value.key()).unwrap(),
+            )
+        })
+    }
+
+    fn first_entry(&self) -> Option<&KeyValue<K, V>> {
+        for entry in self.entries.iter() {
             match entry {
                 Entry::Empty => {}
                 Entry::KeyValue(key_value) => {
-                    return Some((
-                        key_value.key(),
-                        key_value.value(),
-                        self.remove(key_value.key()).unwrap(),
-                    ));
+                    return Some(key_value);
                 }
-                Entry::Hamt(hamt) => {
-                    let (key, value, rest) = hamt.first_rest().unwrap();
-
-                    return Some((key, value, self.set_entry(index, rest)));
-                }
+                Entry::Hamt(hamt) => return hamt.first_entry(),
             }
         }
 
@@ -224,7 +225,9 @@ impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
     }
 
     pub fn insert_mut(&mut self, key: K, value: V) -> bool {
-        self.insert_mut_with_hash(key, hash_key(&key, 0), value, 0, 0)
+        let hash = hash_key(&key, 0);
+
+        self.insert_mut_with_hash(key, hash, value, 0, 0)
     }
 
     fn insert_mut_with_hash(
@@ -245,36 +248,34 @@ impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
             Entry::KeyValue(key_value) => {
                 let (entry, ok) = if &key == key_value.key() {
                     (KeyValue::new(key, value).into(), false)
-                } else if level < MAX_LEVEL {
-                    let mut hamt = Self::new(self.level + 1);
+                } else {
+                    let (level, layer) = Self::increment_level(level, layer);
+                    let mut hamt = Self::new();
 
-                    hamt.insert_mut_with_hash(key, hash, value);
+                    hamt.insert_mut_with_hash(key, hash, value, level, layer);
                     // TODO Cache hash.
                     hamt.insert_mut_with_hash(
                         key_value.key().clone(),
-                        hash_key(key_value.key()),
+                        hash_key(key_value.key(), layer),
                         key_value.value().clone(),
+                        level,
+                        layer,
                     );
 
                     (hamt.into(), true)
-                } else {
-                    (
-                        Bucket::new(vec![
-                            (key, value),
-                            (key_value.key().clone(), key_value.value().clone()),
-                        ])
-                        .into(),
-                        true,
-                    )
                 };
 
                 self.entries[index] = entry;
 
                 ok
             }
-            Entry::Hamt(hamt) => Arc::get_mut(hamt)
-                .unwrap()
-                .insert_mut_with_hash(key, hash, value),
+            Entry::Hamt(hamt) => {
+                let (level, layer) = Self::increment_level(level, layer);
+
+                Arc::get_mut(hamt)
+                    .unwrap()
+                    .insert_mut_with_hash(key, hash, value, level, layer)
+            }
         }
     }
 
@@ -363,12 +364,12 @@ mod tests {
 
     #[test]
     fn new() {
-        Hamt::<usize, usize>::new(0);
+        Hamt::<usize, usize>::new();
     }
 
     #[test]
     fn insert() {
-        let hamt = Hamt::new(0);
+        let hamt = Hamt::new();
 
         assert_eq!(hamt.entry_count(), 0);
 
@@ -390,7 +391,7 @@ mod tests {
 
     #[test]
     fn insert_many_in_order() {
-        let mut hamt = Hamt::new(0);
+        let mut hamt = Hamt::new();
 
         for index in 0..NUM_ITERATIONS {
             let (other, ok) = hamt.insert(index, index);
@@ -402,7 +403,7 @@ mod tests {
 
     #[test]
     fn insert_many_at_random() {
-        let mut hamt: Hamt<usize, usize> = Hamt::new(0);
+        let mut hamt: Hamt<usize, usize> = Hamt::new();
 
         for index in 0..NUM_ITERATIONS {
             let key = random();
@@ -413,7 +414,7 @@ mod tests {
 
     #[test]
     fn remove() {
-        let hamt = Hamt::new(0);
+        let hamt = Hamt::new();
 
         assert_eq!(hamt.insert(0, 0).0.remove(&0), Some(hamt.clone()));
         assert_eq!(hamt.insert(0, 0).0.remove(&1), None);
@@ -430,7 +431,7 @@ mod tests {
 
     #[test]
     fn insert_remove_many() {
-        let mut hamt: Hamt<i16, i16> = Hamt::new(0);
+        let mut hamt: Hamt<i16, i16> = Hamt::new();
 
         for _ in 0..NUM_ITERATIONS {
             let key = random();
@@ -455,7 +456,7 @@ mod tests {
 
     #[test]
     fn get() {
-        let hamt = Hamt::new(0);
+        let hamt = Hamt::new();
 
         assert_eq!(hamt.insert(0, 0).0.get(&0), Some(&0));
         assert_eq!(hamt.insert(0, 0).0.get(&1), None);
@@ -468,7 +469,7 @@ mod tests {
 
     #[test]
     fn first_rest() {
-        let mut hamt: Hamt<i16, i16> = Hamt::new(0);
+        let mut hamt: Hamt<i16, i16> = Hamt::new();
 
         for _ in 0..NUM_ITERATIONS {
             let key = random();
@@ -488,12 +489,12 @@ mod tests {
             assert!(hamt.is_normal());
         }
 
-        assert_eq!(hamt, Hamt::new(0));
+        assert_eq!(hamt, Hamt::new());
     }
 
     #[test]
     fn is_singleton() {
-        let hamt = Hamt::new(0);
+        let hamt = Hamt::new();
 
         assert!(!hamt.is_singleton());
         assert!(hamt.insert(0, 0).0.is_singleton());
@@ -503,7 +504,7 @@ mod tests {
     #[test]
     fn equality() {
         for _ in 0..8 {
-            let mut hamts: [Hamt<i16, i16>; 2] = [Hamt::new(0), Hamt::new(0)];
+            let mut hamts: [Hamt<i16, i16>; 2] = [Hamt::new(), Hamt::new()];
             let mut inserted_keys: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
             let mut deleted_keys: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
 
@@ -524,27 +525,28 @@ mod tests {
         }
     }
 
-    #[test]
-    fn collision() {
-        let mut hamt = Hamt::new(MAX_LEVEL);
-        let mut set = HashSet::new();
+    // TODO
+    // #[test]
+    // fn collision() {
+    //     let mut hamt = Hamt::new();
+    //     let mut set = HashSet::new();
 
-        for key in 0.. {
-            assert!(!hamt.contains_bucket());
+    //     for key in 0.. {
+    //         assert!(!hamt.contains_bucket());
 
-            hamt = hamt.insert(key, key).0;
+    //         hamt = hamt.insert(key, key).0;
 
-            let index = hash_key(&key) >> 60;
+    //         let index = hash_key(&key) >> 60;
 
-            if set.contains(&index) {
-                break;
-            }
+    //         if set.contains(&index) {
+    //             break;
+    //         }
 
-            set.insert(index);
-        }
+    //         set.insert(index);
+    //     }
 
-        assert!(hamt.contains_bucket());
-    }
+    //     assert!(hamt.contains_bucket());
+    // }
 
     #[test]
     fn iterate() {
@@ -554,7 +556,8 @@ mod tests {
 
         for &level in &[0, MAX_LEVEL] {
             for size in &sizes {
-                let mut hamt: Hamt<i16, i16> = Hamt::new(level);
+                // TODO
+                let mut hamt: Hamt<i16, i16> = Hamt::new();
                 let mut map: HashMap<i16, i16> = HashMap::new();
 
                 for _ in 0..*size {

@@ -16,7 +16,7 @@ impl<K: Hash + Eq, V> Map<K, V> {
     pub fn new() -> Self {
         Self {
             size: 0,
-            hamt: Hamt::new(0).into(),
+            hamt: Hamt::new().into(),
         }
     }
 
@@ -130,7 +130,7 @@ where
 impl<K: Clone + Hash + Eq, V: Clone> FromIterator<(K, V)> for Map<K, V> {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iterator: T) -> Self {
         let mut size = 0;
-        let mut hamt = Hamt::new(0);
+        let mut hamt = Hamt::new();
 
         for (key, value) in iterator {
             size += hamt.insert_mut(key, value) as usize;
