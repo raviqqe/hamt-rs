@@ -49,14 +49,18 @@ impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
     }
 
     /// Removes a key and returns its corresponding value from a map if any.
-    pub fn remove<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Option<Self>
+    pub fn remove<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Self
     where
         K: Borrow<Q>,
     {
-        self.hamt.remove(key).map(|hamt| Self {
-            size: self.size - 1,
-            hamt: hamt.into(),
-        })
+        if let Some(hamt) = self.hamt.remove(key) {
+            Self {
+                size: self.size - 1,
+                hamt: hamt.into(),
+            }
+        } else {
+            self.clone()
+        }
     }
 
     /// Extends a map with an iterator of key-value pairs.
