@@ -210,17 +210,14 @@ mod test {
     fn remove() {
         let map = Map::new();
 
-        assert_eq!(map.insert(0, 0).remove(&0), Some(map.clone()));
-        assert_eq!(map.insert(0, 0).remove(&1), None);
+        assert_eq!(map.insert(0, 0).remove(&0), map.clone());
+        assert_eq!(map.insert(0, 0).remove(&1), map.insert(0, 0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).remove(&0), map.insert(1, 0));
+        assert_eq!(map.insert(0, 0).insert(1, 0).remove(&1), map.insert(0, 0));
         assert_eq!(
-            map.insert(0, 0).insert(1, 0).remove(&0),
-            Some(map.insert(1, 0))
+            map.insert(0, 0).insert(1, 0).remove(&2),
+            map.insert(0, 0).insert(1, 0)
         );
-        assert_eq!(
-            map.insert(0, 0).insert(1, 0).remove(&1),
-            Some(map.insert(0, 0))
-        );
-        assert_eq!(map.insert(0, 0).insert(1, 0).remove(&2), None);
     }
 
     #[test]
@@ -238,7 +235,7 @@ mod test {
                 assert_eq!(map.len(), if found { size } else { size + 1 });
                 assert_eq!(map.get(&key), Some(&key));
             } else {
-                map = map.remove(&key).unwrap_or(map);
+                map = map.remove(&key);
 
                 assert_eq!(map.len(), if found { size - 1 } else { size });
                 assert_eq!(map.get(&key), None);
@@ -295,7 +292,7 @@ mod test {
                 }
 
                 for key in &deleted_keys {
-                    *map = map.remove(key).unwrap_or_else(|| map.clone());
+                    *map = map.remove(key);
                 }
             }
 
