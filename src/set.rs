@@ -185,7 +185,7 @@ mod test {
     fn remove() {
         let set = Set::new();
 
-        assert_eq!(set.insert(0).remove(&0), set.clone());
+        assert_eq!(set.insert(0).remove(&0), set);
         assert_eq!(set.insert(0).remove(&1), set.insert(0));
         assert_eq!(set.insert(0).insert(1).remove(&0), set.insert(1));
         assert_eq!(set.insert(0).insert(1).remove(&1), set.insert(0));

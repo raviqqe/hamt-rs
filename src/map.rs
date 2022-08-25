@@ -210,7 +210,7 @@ mod test {
     fn remove() {
         let map = Map::new();
 
-        assert_eq!(map.insert(0, 0).remove(&0), map.clone());
+        assert_eq!(map.insert(0, 0).remove(&0), map);
         assert_eq!(map.insert(0, 0).remove(&1), map.insert(0, 0));
         assert_eq!(map.insert(0, 0).insert(1, 0).remove(&0), map.insert(1, 0));
         assert_eq!(map.insert(0, 0).insert(1, 0).remove(&1), map.insert(0, 0));
