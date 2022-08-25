@@ -73,6 +73,19 @@ impl<K: Hash + Eq, V> Hamt<K, V> {
         self.get_with_hash(key, hash_key(key, 0), 0, 0)
     }
 
+    #[cfg(test)]
+    pub fn get_at_level<Q: Hash + Eq + ?Sized>(
+        &self,
+        key: &Q,
+        level: usize,
+        layer: usize,
+    ) -> Option<&V>
+    where
+        K: Borrow<Q>,
+    {
+        self.get_with_hash(key, hash_key(key, layer), level, layer)
+    }
+
     fn get_with_hash<Q: Hash + Eq + ?Sized>(
         &self,
         key: &Q,
@@ -119,6 +132,19 @@ impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
         self.remove_with_hash(key, hash_key(key, 0), 0, 0)
     }
 
+    #[cfg(test)]
+    pub fn remove_at_level<Q: Hash + Eq + ?Sized>(
+        &self,
+        key: &Q,
+        level: usize,
+        layer: usize,
+    ) -> Option<Self>
+    where
+        K: Borrow<Q>,
+    {
+        self.remove_with_hash(key, hash_key(key, layer), level, layer)
+    }
+
     fn remove_with_hash<Q: Hash + Eq + ?Sized>(
         &self,
         key: &Q,
@@ -156,6 +182,13 @@ impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
         let hash = hash_key(&key, 0);
 
         self.insert_with_hash(key, hash, value, 0, 0)
+    }
+
+    #[cfg(test)]
+    pub fn insert_at_level(&self, key: K, value: V, level: usize, layer: usize) -> (Self, bool) {
+        let hash = hash_key(&key, layer);
+
+        self.insert_with_hash(key, hash, value, level, layer)
     }
 
     fn insert_with_hash(
@@ -252,7 +285,6 @@ impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
                     let (level, layer) = Self::increment_level(level, layer);
                     let mut hamt = Self::new();
 
-                    hamt.insert_mut_with_hash(key, hash, value, level, layer);
                     // TODO Cache hash.
                     hamt.insert_mut_with_hash(
                         key_value.key().clone(),
@@ -261,6 +293,7 @@ impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
                         level,
                         layer,
                     );
+                    hamt.insert_mut_with_hash(key, hash, value, level, layer);
 
                     (hamt.into(), true)
                 };
@@ -313,19 +346,14 @@ impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
 }
 
 #[derive(Debug)]
-enum NodeRef<'a, K: 'a, V: 'a> {
-    Hamt(&'a Hamt<K, V>),
-}
-
-#[derive(Debug)]
-pub struct HamtIterator<'a, K: 'a, V: 'a>(Vec<(NodeRef<'a, K, V>, usize)>);
+pub struct HamtIterator<'a, K: 'a, V: 'a>(Vec<(&'a Hamt<K, V>, usize)>);
 
 impl<'a, K, V> IntoIterator for &'a Hamt<K, V> {
     type IntoIter = HamtIterator<'a, K, V>;
     type Item = (&'a K, &'a V);
 
     fn into_iter(self) -> Self::IntoIter {
-        HamtIterator(vec![(NodeRef::Hamt(self), 0)])
+        HamtIterator(vec![(self, 0)])
     }
 }
 
@@ -333,22 +361,20 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
     type Item = (&'a K, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.pop().and_then(|(node, index)| match node {
-            NodeRef::Hamt(hamt) => {
-                if index == ENTRY_COUNT {
-                    return self.next();
-                }
+        self.0.pop().and_then(|(hamt, index)| {
+            if index == ENTRY_COUNT {
+                return self.next();
+            }
 
-                self.0.push((node, index + 1));
+            self.0.push((hamt, index + 1));
 
-                match &hamt.entries[index] {
-                    Entry::Empty => self.next(),
-                    Entry::Hamt(hamt) => {
-                        self.0.push((NodeRef::Hamt(hamt), 0));
-                        self.next()
-                    }
-                    Entry::KeyValue(key_value) => Some((key_value.key(), key_value.value())),
+            match &hamt.entries[index] {
+                Entry::Empty => self.next(),
+                Entry::Hamt(hamt) => {
+                    self.0.push((hamt, 0));
+                    self.next()
                 }
+                Entry::KeyValue(key_value) => Some((key_value.key(), key_value.value())),
             }
         })
     }
@@ -525,7 +551,6 @@ mod tests {
         }
     }
 
-    // TODO
     // #[test]
     // fn collision() {
     //     let mut hamt = Hamt::new();
@@ -550,13 +575,14 @@ mod tests {
 
     #[test]
     fn iterate() {
-        let sizes: Vec<usize> = (0..42)
-            .chain((0..100).map(|_| random::<usize>() % 1024))
-            .collect();
+        const LAYER: usize = 0;
 
-        for &level in &[0, MAX_LEVEL] {
+        let sizes = (0..42)
+            .chain((0..100).map(|_| random::<usize>() % 1024))
+            .collect::<Vec<_>>();
+
+        for level in [0, MAX_LEVEL] {
             for size in &sizes {
-                // TODO
                 let mut hamt: Hamt<i16, i16> = Hamt::new();
                 let mut map: HashMap<i16, i16> = HashMap::new();
 
@@ -564,8 +590,7 @@ mod tests {
                     let key = random();
                     let value = random();
 
-                    let (other_hamt, _) = hamt.insert(key, value);
-                    hamt = other_hamt;
+                    hamt = hamt.insert_at_level(key, value, level, LAYER).0;
 
                     map.insert(key, value);
                 }
