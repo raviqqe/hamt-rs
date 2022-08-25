@@ -205,12 +205,12 @@ mod test {
                 set = set.insert(value);
 
                 assert_eq!(set.len(), if found { size } else { size + 1 });
-                assert!(set.contains(&value),);
+                assert!(set.contains(&value));
             } else {
                 set = set.remove(&value);
 
                 assert_eq!(set.len(), if found { size - 1 } else { size });
-                assert!(set.contains(&value),);
+                assert!(!set.contains(&value));
             }
         }
     }
