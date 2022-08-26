@@ -73,6 +73,7 @@ impl<K, V> Hamt<K, V> {
 }
 
 impl<K: Hash + Eq, V> Hamt<K, V> {
+    #[must_use]
     pub fn get<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
@@ -132,6 +133,7 @@ impl<K: Clone, V: Clone> Hamt<K, V> {
 }
 
 impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
+    #[must_use]
     pub fn remove<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Option<Self>
     where
         K: Borrow<Q>,
@@ -185,6 +187,7 @@ impl<K: Clone + Hash + Eq, V: Clone> Hamt<K, V> {
         ))
     }
 
+    #[must_use]
     pub fn insert(&self, key: K, value: V) -> (Self, bool) {
         let hash = hash_key(&key, 0);
 

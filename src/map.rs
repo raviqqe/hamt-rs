@@ -39,6 +39,7 @@ impl<K: Hash + Eq, V> Map<K, V> {
 
 impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
     /// Inserts a key-value pair into a map.
+    #[must_use]
     pub fn insert(&self, key: K, value: V) -> Self {
         let (hamt, ok) = self.hamt.insert(key, value);
 
@@ -49,6 +50,7 @@ impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
     }
 
     /// Removes a key from a map if any.
+    #[must_use]
     pub fn remove<Q: Hash + Eq + ?Sized>(&self, key: &Q) -> Self
     where
         K: Borrow<Q>,
@@ -64,6 +66,7 @@ impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
     }
 
     /// Extends a map with an iterator of key-value pairs.
+    #[must_use]
     pub fn extend(&self, iterator: impl IntoIterator<Item = (K, V)>) -> Self {
         let mut map = self.clone();
 
@@ -96,6 +99,7 @@ impl<K: Clone + Hash + Eq, V: Clone> Map<K, V> {
 
     /// Removes the first element in a map and returns a new map containing the
     /// rest of elements.
+    #[must_use]
     pub fn first_rest(&self) -> Option<(&K, &V, Self)> {
         self.hamt.first_rest().map(|(key, value, hamt)| {
             (

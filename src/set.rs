@@ -31,6 +31,7 @@ impl<T: Hash + Eq> Set<T> {
 
 impl<T: Clone + Hash + Eq> Set<T> {
     /// Inserts a value into a set.
+    #[must_use]
     pub fn insert(&self, value: T) -> Self {
         let (hamt, ok) = self.hamt.insert(value, ());
 
@@ -41,6 +42,7 @@ impl<T: Clone + Hash + Eq> Set<T> {
     }
 
     /// Removes a value from a set if any.
+    #[must_use]
     pub fn remove<Q: Hash + Eq + ?Sized>(&self, value: &Q) -> Self
     where
         T: Borrow<Q>,
@@ -56,6 +58,7 @@ impl<T: Clone + Hash + Eq> Set<T> {
     }
 
     /// Extends a set with an iterator of values.
+    #[must_use]
     pub fn extend(&self, iterator: impl IntoIterator<Item = T>) -> Self {
         let mut set = self.clone();
 
@@ -83,6 +86,7 @@ impl<T: Clone + Hash + Eq> Set<T> {
 
     /// Removes the first element in a set and returns a new set containing the
     /// rest of elements.
+    #[must_use]
     pub fn first_rest(&self) -> Option<(&T, Self)> {
         self.hamt.first_rest().map(|(key, _, hamt)| {
             (
