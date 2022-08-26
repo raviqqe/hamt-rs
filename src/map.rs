@@ -1,4 +1,4 @@
-use crate::hamt::{Hamt, HamtIterator};
+use crate::hamt::{ClonedHamtIterator, Hamt, HamtIterator};
 use std::{borrow::Borrow, hash::Hash, ops::Index, sync::Arc};
 
 /// Map data structure of HAMT.
@@ -159,6 +159,25 @@ impl<'a, K, V> IntoIterator for &'a Map<K, V> {
 
     fn into_iter(self) -> Self::IntoIter {
         MapIterator(self.hamt.into_iter())
+    }
+}
+
+pub struct ClonedMapIterator<K: Clone, V: Clone>(ClonedHamtIterator<K, V>);
+
+impl<K: Clone, V: Clone> Iterator for ClonedMapIterator<K, V> {
+    type Item = (K, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+impl<K: Clone, V: Clone> IntoIterator for Map<K, V> {
+    type IntoIter = ClonedMapIterator<K, V>;
+    type Item = (K, V);
+
+    fn into_iter(self) -> Self::IntoIter {
+        ClonedMapIterator(self.hamt.as_ref().clone().into_iter())
     }
 }
 
@@ -323,6 +342,20 @@ mod test {
             Map::<String, usize>::new().insert("foo".to_string(), 42)["foo"],
             42,
         );
+    }
+
+    mod into_iterator {
+        use super::*;
+
+        #[test]
+        fn iterate() {
+            for _ in Map::<usize, usize>::new() {}
+        }
+
+        #[test]
+        fn iterate_borrowed() {
+            for _ in &Map::<usize, usize>::new() {}
+        }
     }
 
     mod from_iterator {
