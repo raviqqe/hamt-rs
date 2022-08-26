@@ -387,6 +387,43 @@ impl<'a, K, V> Iterator for HamtIterator<'a, K, V> {
     }
 }
 
+#[derive(Debug)]
+pub struct ClonedHamtIterator<K: Clone, V: Clone>(Vec<(Arc<Hamt<K, V>>, usize)>);
+
+impl<K: Clone, V: Clone> IntoIterator for Hamt<K, V> {
+    type IntoIter = ClonedHamtIterator<K, V>;
+    type Item = (K, V);
+
+    fn into_iter(self) -> Self::IntoIter {
+        ClonedHamtIterator(vec![(self.into(), 0)])
+    }
+}
+
+impl<K: Clone, V: Clone> Iterator for ClonedHamtIterator<K, V> {
+    type Item = (K, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.pop().and_then(|(hamt, index)| {
+            if index == ENTRY_COUNT {
+                return self.next();
+            }
+
+            self.0.push((hamt.clone(), index + 1));
+
+            match &hamt.entries[index] {
+                Entry::Empty => self.next(),
+                Entry::Hamt(hamt) => {
+                    self.0.push((hamt.clone(), 0));
+                    self.next()
+                }
+                Entry::KeyValue(key_value) => {
+                    Some((key_value.key().clone(), key_value.value().clone()))
+                }
+            }
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -581,7 +618,7 @@ mod tests {
 
                     let mut size = 0;
 
-                    for (key, value) in hamt.into_iter() {
+                    for (key, value) in &hamt {
                         size += 1;
 
                         assert_eq!(map[key], *value);

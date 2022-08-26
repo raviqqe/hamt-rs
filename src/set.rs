@@ -1,4 +1,4 @@
-use crate::hamt::{Hamt, HamtIterator};
+use crate::hamt::{ClonedHamtIterator, Hamt, HamtIterator};
 use std::{borrow::Borrow, hash::Hash, sync::Arc};
 
 /// Set data structure of HAMT.
@@ -134,6 +134,25 @@ impl<'a, T> IntoIterator for &'a Set<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         SetIterator(self.hamt.into_iter())
+    }
+}
+
+pub struct ClonedSetIterator<T: Clone>(ClonedHamtIterator<T, ()>);
+
+impl<T: Clone> Iterator for ClonedSetIterator<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(key, _)| key)
+    }
+}
+
+impl<T: Clone> IntoIterator for Set<T> {
+    type IntoIter = ClonedSetIterator<T>;
+    type Item = T;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ClonedSetIterator(self.hamt.as_ref().clone().into_iter())
     }
 }
 
