@@ -344,6 +344,20 @@ mod test {
         );
     }
 
+    mod into_iterator {
+        use super::*;
+
+        #[test]
+        fn iterate() {
+            for _ in Map::<usize, usize>::new() {}
+        }
+
+        #[test]
+        fn iterate_borrowed() {
+            for _ in &Map::<usize, usize>::new() {}
+        }
+    }
+
     mod from_iterator {
         use super::*;
 

@@ -312,6 +312,20 @@ mod test {
         assert_eq!(Set::<usize>::new().insert(0), Set::new().extend([0]));
     }
 
+    mod into_iterator {
+        use super::*;
+
+        #[test]
+        fn iterate() {
+            for _ in Set::<usize>::new() {}
+        }
+
+        #[test]
+        fn iterate_borrowed() {
+            for _ in &Set::<usize>::new() {}
+        }
+    }
+
     mod from_iterator {
         use super::*;
 
