@@ -98,6 +98,42 @@ impl<T: Clone + Hash + Eq> Set<T> {
             )
         })
     }
+
+    /// Calculate intersection of two sets.
+    pub fn intersection(&self, other: &Self) -> Self {
+        let mut size = 0;
+        let mut hamt = Hamt::new();
+
+        for element in self {
+            if other.contains(element) && hamt.insert_mut(element.clone(), ()) {
+                size += 1;
+            }
+        }
+
+        Self {
+            hamt: hamt.into(),
+            size,
+        }
+    }
+
+    /// Calculate difference of two sets.
+    pub fn difference(&self, other: &Self) -> Self {
+        let mut size = 0;
+        let mut hamt = Hamt::new();
+
+        for element in self {
+            if !other.contains(element) {
+                if hamt.insert_mut(element.clone(), ()) {
+                    size += 1;
+                }
+            }
+        }
+
+        Self {
+            hamt: hamt.into(),
+            size,
+        }
+    }
 }
 
 impl<T: Clone + Hash + Eq> Default for Set<T> {
@@ -276,6 +312,73 @@ mod test {
         }
 
         assert_eq!(set, Set::new());
+    }
+
+    #[test]
+    fn intersection() {
+        assert_eq!(
+            Set::new().insert(42).intersection(&Set::new().insert(42)),
+            Set::new().insert(42)
+        );
+        assert_eq!(Set::new().insert(42).intersection(&Set::new()), Set::new());
+        assert_eq!(
+            Set::new()
+                .insert(1)
+                .insert(2)
+                .intersection(&Set::new().insert(1)),
+            Set::new().insert(1)
+        );
+        assert_eq!(
+            Set::new()
+                .insert(1)
+                .insert(2)
+                .intersection(&Set::new().insert(2)),
+            Set::new().insert(2)
+        );
+        assert_eq!(
+            Set::new()
+                .insert(1)
+                .insert(2)
+                .insert(3)
+                .insert(4)
+                .intersection(&Set::new().insert(1).insert(3)),
+            Set::new().insert(1).insert(3)
+        );
+    }
+
+    #[test]
+    fn difference() {
+        assert_eq!(
+            Set::new().insert(42).difference(&Set::new().insert(42)),
+            Set::new()
+        );
+        assert_eq!(
+            Set::new().insert(42).difference(&Set::new()),
+            Set::new().insert(42)
+        );
+        assert_eq!(
+            Set::new()
+                .insert(1)
+                .insert(2)
+                .difference(&Set::new().insert(1)),
+            Set::new().insert(2)
+        );
+        assert_eq!(
+            Set::new()
+                .insert(1)
+                .insert(2)
+                .difference(&Set::new().insert(2)),
+            Set::new().insert(1)
+        );
+        assert_eq!(
+            Set::new()
+                .insert(1)
+                .insert(2)
+                .insert(3)
+                .insert(4)
+                .difference(&Set::new().insert(1).insert(3)),
+            Set::new().insert(2).insert(4)
+        );
     }
 
     #[test]
