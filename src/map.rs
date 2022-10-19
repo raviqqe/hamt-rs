@@ -126,7 +126,7 @@ where
 {
     type Output = V;
 
-    fn index(&self, key: &Q) -> &V {
+    fn index(&self, key: &Q) -> &Self::Output {
         self.get(key).expect("existent key")
     }
 }
