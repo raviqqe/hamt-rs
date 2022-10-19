@@ -127,7 +127,7 @@ where
     type Output = V;
 
     fn index(&self, key: &Q) -> &V {
-        self.get(key).expect("invalid key")
+        self.get(key).expect("existent key")
     }
 }
 
