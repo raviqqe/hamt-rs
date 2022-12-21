@@ -1,6 +1,6 @@
 # hamt-rs
 
-[![GitHub Action](https://img.shields.io/github/workflow/status/raviqqe/hamt-rs/test?style=flat-square)](https://github.com/raviqqe/hamt-rs/actions?query=workflow%3Atest)
+[![GitHub Action](https://img.shields.io/github/actions/workflow/status/raviqqe/hamt-rs/test.yaml?branch=main&style=flat-square)](https://github.com/raviqqe/hamt-rs/actions?query=workflow%3Atest)
 [![License](https://img.shields.io/github/license/raviqqe/hamt-rs.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
 HAMT implementation whose sub-trees can be shared over threads.
