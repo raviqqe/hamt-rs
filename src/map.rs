@@ -188,7 +188,7 @@ impl<K: Clone, V: Clone> IntoIterator for Map<K, V> {
 #[cfg(test)]
 mod test {
     use super::Map;
-    use rand::{random, seq::SliceRandom, thread_rng};
+    use rand::{random, rng, seq::SliceRandom};
     use std::thread::spawn;
 
     const NUM_ITERATIONS: usize = 1 << 12;
@@ -220,11 +220,11 @@ mod test {
 
     #[test]
     fn insert_many_at_random() {
-        let mut map: Map<usize, usize> = Map::new();
+        let mut map: Map<u64, u64> = Map::new();
 
         for index in 0..NUM_ITERATIONS {
-            let ey = random();
-            map = map.insert(ey, ey);
+            let key = random();
+            map = map.insert(key, key);
             assert_eq!(map.len(), index + 1);
         }
     }
@@ -307,8 +307,8 @@ mod test {
             let mut deleted_keys: Vec<i16> = (0..NUM_ITERATIONS).map(|_| random()).collect();
 
             for map in maps.iter_mut() {
-                inserted_keys.shuffle(&mut thread_rng());
-                deleted_keys.shuffle(&mut thread_rng());
+                inserted_keys.shuffle(&mut rng());
+                deleted_keys.shuffle(&mut rng());
 
                 for key in &inserted_keys {
                     *map = map.insert(*key, *key);
