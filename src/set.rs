@@ -122,10 +122,8 @@ impl<T: Clone + Hash + Eq> Set<T> {
         let mut hamt = Hamt::new();
 
         for element in self {
-            if !other.contains(element) {
-                if hamt.insert_mut(element.clone(), ()) {
-                    size += 1;
-                }
+            if !other.contains(element) && hamt.insert_mut(element.clone(), ()) {
+                size += 1;
             }
         }
 

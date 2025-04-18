@@ -45,6 +45,12 @@ pub struct Hamt<K, V> {
     entries: [Entry<K, V>; ENTRY_COUNT],
 }
 
+impl<K, V> Default for Hamt<K, V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<K, V> Hamt<K, V> {
     pub fn new() -> Self {
         Self {
