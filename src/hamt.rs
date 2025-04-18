@@ -436,7 +436,7 @@ impl<K: Clone, V: Clone> Iterator for ClonedHamtIterator<K, V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::{random, seq::SliceRandom, thread_rng};
+    use rand::{random, rng, seq::SliceRandom};
     use std::collections::HashMap;
 
     const ITERATION_COUNT: usize = 1 << 12;
@@ -482,7 +482,7 @@ mod tests {
 
     #[test]
     fn insert_many_at_random() {
-        let mut hamt: Hamt<usize, usize> = Hamt::new();
+        let mut hamt: Hamt<u64, u64> = Hamt::new();
 
         for index in 0..ITERATION_COUNT {
             let key = random();
@@ -588,8 +588,8 @@ mod tests {
             let mut deleted_keys: Vec<i16> = (0..ITERATION_COUNT).map(|_| random()).collect();
 
             for hamt in hamts.iter_mut() {
-                inserted_keys.shuffle(&mut thread_rng());
-                deleted_keys.shuffle(&mut thread_rng());
+                inserted_keys.shuffle(&mut rng());
+                deleted_keys.shuffle(&mut rng());
 
                 for key in &inserted_keys {
                     *hamt = hamt.insert(*key, *key).0;
@@ -607,7 +607,7 @@ mod tests {
     #[test]
     fn iterate() {
         let sizes = (0..42)
-            .chain((0..100).map(|_| random::<usize>() % 1024))
+            .chain((0..100).map(|_| random::<u64>() % 1024))
             .collect::<Vec<_>>();
 
         for layer in 0..=1 {
