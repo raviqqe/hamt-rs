@@ -122,10 +122,8 @@ impl<T: Clone + Hash + Eq> Set<T> {
         let mut hamt = Hamt::new();
 
         for element in self {
-            if !other.contains(element) {
-                if hamt.insert_mut(element.clone(), ()) {
-                    size += 1;
-                }
+            if !other.contains(element) && hamt.insert_mut(element.clone(), ()) {
+                size += 1;
             }
         }
 
@@ -199,7 +197,7 @@ impl<T: Clone> IntoIterator for Set<T> {
 #[cfg(test)]
 mod test {
     use super::Set;
-    use rand::{random, seq::SliceRandom, thread_rng};
+    use rand::{random, rng, seq::SliceRandom};
     use std::thread::spawn;
 
     const ITERATION_COUNT: usize = 1 << 12;
@@ -231,10 +229,10 @@ mod test {
 
     #[test]
     fn insert_many_at_random() {
-        let mut set: Set<usize> = Set::new();
+        let mut set: Set<u64> = Set::new();
 
         for index in 0..ITERATION_COUNT {
-            let value = random();
+            let value = random::<u64>();
             set = set.insert(value);
             assert_eq!(set.len(), index + 1);
         }
@@ -389,8 +387,8 @@ mod test {
             let mut deleted_values: Vec<i16> = (0..ITERATION_COUNT).map(|_| random()).collect();
 
             for set in sets.iter_mut() {
-                inserted_values.shuffle(&mut thread_rng());
-                deleted_values.shuffle(&mut thread_rng());
+                inserted_values.shuffle(&mut rng());
+                deleted_values.shuffle(&mut rng());
 
                 for value in &inserted_values {
                     *set = set.insert(*value);
