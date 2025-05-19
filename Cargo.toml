@@ -7,7 +7,7 @@ license = "MIT"
 edition = "2021"
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.6"
 rand = "0.9"
 
 [[bench]]
